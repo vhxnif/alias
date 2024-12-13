@@ -19,5 +19,5 @@ export interface IGitAlias {
     restore: () => Promise<void>
     commit: () => Promise<void>
     rollbackFileChanges: () => Promise<void>
-
+    fileDiff: () => Promise<void>
 }

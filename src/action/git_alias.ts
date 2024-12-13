@@ -1,4 +1,4 @@
-import { checkbox, input } from "@inquirer/prompts"
+import { checkbox, input, select } from "@inquirer/prompts"
 import { $, ShellError } from "bun"
 import { isEmpty } from "lodash"
 import ora from "ora"
@@ -120,6 +120,8 @@ export default class GitAlias implements IGitAlias {
 
     rollbackFileChanges = async () => await this.fileProcess('Select Rollback Files:', 'git checkout HEAD --', this.changedFile, false)
 
+    fileDiff = async () => await this.singleFileProcess('Select Diff File:', 'git diff', () => this.statusLogFilter(() => true))
+
     private commitWithMessage = async () => {
         const spinner = ora(oraText('Extract Git Diff...')).start()
         const diff = await this.exec(`git diff --staged`)
@@ -167,6 +169,26 @@ export default class GitAlias implements IGitAlias {
                 return
             }
             answer.forEach(it => this.exec(`${commandPre} ${it}`))
+        })
+    }
+
+    private singleFileProcess = async (message: string, commandPre: string, logs: () => Promise<string[][]>, disablePrint: boolean = true) => {
+        const statusShortLog = await logs()
+        if (isEmpty(statusShortLog)) {
+            printErr('Nothing To Processing.')
+            return
+        }
+        await select({
+            message,
+            choices: statusShortLog.map(it => ({ name: it[2], value: it[2] }))
+        }).then(async answer => {
+            if (isEmpty(answer)) {
+                return
+            }
+            const command = `${commandPre} ${answer}`
+            disablePrint
+            ? await this.execPrint(command)
+            : await this.exec(command)
         })
     }
 

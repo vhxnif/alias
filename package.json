@@ -30,6 +30,7 @@
     "gfa": "out/src/command/git_add.js",
     "gfd": "out/src/command/git_restore.js",
     "gfr": "out/src/command/git_checkout_head.js",
+    "gfc": "out/src/command/git_file_diff.js",
     "gl": "out/src/command/git_log.js",
     "gc": "out/src/command/git_commit.js",
     "gh": "out/src/command/git_help.js"
