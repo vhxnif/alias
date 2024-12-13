@@ -32,9 +32,11 @@ const tableDefaultConfig: TableUserConfig = {
     }
 }
 
-const tableConfig = (cols: number[]): TableUserConfig => {
+const tableConfig = (cols: number[], maxCol: number = 70): TableUserConfig => {
     const allPart = sum(cols)
-    const calWidth = cols.map(it => Math.floor((terminal.column - (4 * cols.length)) * (it / allPart)))
+    const curCol = terminal.column - (4 * cols.length) 
+    const col = curCol > maxCol ? maxCol : curCol
+    const calWidth = cols.map(it => Math.floor(col * (it / allPart)))
     return {
         ...tableDefaultConfig,
         columns: calWidth.map(it => ({
