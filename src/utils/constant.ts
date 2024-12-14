@@ -7,7 +7,7 @@ export const temperature: Record<string, [string, number]> = {
 }
 
 export const config = {
-    baseUrl: process.env.LLM_BASE_URL ?? 'https://api.deepseek.com',
-    apiKey: process.env.API_KEY!,
-    defaultModel: process.env.LLM_DEFAULT_MODEL ?? 'deepseek-chat',
+    baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.deepseek.com',
+    apiKey: process.env.OPENAI_API_KEY!,
+    defaultModel: process.env.OPENAI_DEFAULT_MODEL ?? 'deepseek-chat',
 }
