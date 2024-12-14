@@ -1,0 +1,116 @@
+= alias
+
+Some Command Alias
+
+To install dependencies:
+
+[source, bash]
+----
+bun install
+----
+
+bun link:
+
+[source, bash]
+----
+bun run build && bun link
+----
+
+.env
+[source, bash]
+----
+# default https://api.deepseek.com
+export OPENAI_BASE_URL = <your openai based url> 
+export OPENAI_API_KEY = <your api key>
+# default deepseek-chat
+export OPENAI_DEFAULT_MODEL = <your default model> 
+----
+
+== Git Alias
+
+[cols="1,5"]
+|===
+|alias|display
+
+|gps|
+``git push``
+
+|gpl|
+``git pull``
+
+|gh|
+Show core command mapping infomation.
+
+|gs|
+Display the output of ``git status`` in a table format.
+
+|gl|
+Display the output of ``git logs`` in a table format.
+
+|gc|
+Select changed files. + 
+Generate commit message. + 
+Execute ``git commit -m <message>``.
+
+|gfa|
+Select changed files. +
+Execute ``git add <files>`` to stage the files.
+
+|gfd|
+Select staged files. + 
+Execute ``git restore --staged <files> `` to unstaged files.
+
+|gfr|
+Select modified files. + 
+Execute `git checkout HEAD -- <files>` to revert selected files to HEAD.
+
+|gfc|
+Select a changed file.
+Execute ``git diff <file>``.
+
+|gsl|
+Display the output of ``git stash list`` in a table format.
+
+|gsa|
+Stash changes with a message. ``git stash push -m <message>``.
+
+|gss|
+Select a stage. + 
+Execute ``git stash show -p <stash>`` to display detailed infomation.
+
+|gsp|
+Execute ``git stash pop``.
+
+|gsu|
+Select a stage. +
+Execute ``git stash apply <stash>`` to apply the stash.
+
+|gsd|
+Select a stage. + 
+Execute ``git stash drop <stash>`` to drop the stash.
+
+|gbn|
+Create a new branch or checkout from origin branch. +
+``git switch -c <name>`` or ``git switch -t <name>``
+
+|gbl|
+Display the output of ``git branch`` in a table format.
+
+|gbc|
+Search and selecet a branch. +
+Execute ``git switch <branch>``.
+
+|gbm|
+Search and select a branch. + 
+Execute ``git merge <branch>``
+
+|gbr|
+Search and select a branch. + 
+Execute ``git rebase <branch>``
+
+|gbd|
+Search and select a branch. + 
+Execute ``git branch -D <branch>``.
+
+|===
+

@@ -27,7 +27,7 @@ new Command()
         ['gfd', 'git restore --staged <file>'],
         ['gfr', 'git checkout HEAD -- <file>'],
         ['gl', 'git log -n <limit>'],
-        ['gs', 'git stash'],
+        ['gs', 'git status'],
         ['gc', 'git commit -m <message>'],
         title(['Alias', 'Core Command'])
     ].map(it => [key(it[0]), value(it[1])]), tableConfig([1, 3])))

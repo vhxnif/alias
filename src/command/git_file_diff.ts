@@ -4,7 +4,7 @@ import { git } from "../type/context"
 
 new Command()
     .name('gfc')
-    .description('git add')
+    .description('git diff <file>')
     .action(async () => await git.fileDiff())
     .parseAsync()
 
