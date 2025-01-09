@@ -4,12 +4,12 @@
   "description": "command alias",
   "author": "vhxnif",
   "license": "MIT",
-  "files": [
-    "out",
-    "README.adoc"
-  ],
+  "files": ["out", "README.adoc"],
   "engines": {
     "bun": ">=1.1.36"
+  },
+  "prettier": {
+    "semi": false
   },
   "bin": {
     "gpl": "out/src/command/git_pull.js",
