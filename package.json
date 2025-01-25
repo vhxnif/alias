@@ -4,12 +4,12 @@
   "description": "command alias",
   "author": "vhxnif",
   "license": "MIT",
+  "prettier": {
+    "semi": false
+  },
   "files": ["out", "README.adoc"],
   "engines": {
     "bun": ">=1.1.36"
-  },
-  "prettier": {
-    "semi": false
   },
   "bin": {
     "gpl": "out/src/command/git_pull.js",
@@ -31,12 +31,14 @@
     "gfd": "out/src/command/git_restore.js",
     "gfr": "out/src/command/git_checkout_head.js",
     "gfc": "out/src/command/git_file_diff.js",
+    "gts": "out/src/command/git_tag_show.js",
     "gl": "out/src/command/git_log.js",
     "gc": "out/src/command/git_commit.js",
+    "gcs": "out/src/command/git_commit_summary.js",
     "gh": "out/src/command/git_help.js"
   },
   "scripts": {
-    "build": "bun build ./src/command/*.ts --outdir ./out --target bun --minify"
+    "build": "bun build ./src/command/*.ts --outdir ./out --target bun --minify --sourcemap"
   },
   "type": "module",
   "devDependencies": {
@@ -57,7 +59,7 @@
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "lodash": "^4.17.21",
-    "openai": "^4.75.0",
+    "openai": "^4.76.0",
     "ora": "^8.1.1",
     "table": "^6.8.2"
   }

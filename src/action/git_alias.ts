@@ -10,13 +10,15 @@ import {
   printCmdLog,
   printErr,
   printTable,
-  selectRun,
   tableConfig,
   tableDefaultConfig,
   title,
 } from "../utils/common-utils"
 import { temperature } from "../utils/constant"
-import { gitCommitMessage } from "../utils/prompt"
+import { gitCommitMessage, gitLogSummary } from "../utils/prompt"
+import type { ChalkInstance } from "chalk"
+import { table, type TableUserConfig } from "table"
+import { default as page } from "../type/page-prompt"
 
 export default class GitAlias implements IGitAlias {
   client: ILLMClient
@@ -24,23 +26,111 @@ export default class GitAlias implements IGitAlias {
     this.client = client
   }
 
-  log = async (limit: number, author?: string) => {
-    const ds = [color.yellow, color.blue, color.pink, color.mauve]
-    let command = `git log --oneline --format="%h│%an│%s│%ad" --date=format:"%H:%M:%S %Y-%m-%d" -n ${limit}`
-    if (author) {
-      command = `${command} --author=${author}`
-    }
-    const logs = await this.exec(command)
+  log = async (limit?: number, author?: string, from?: string, to?: string) => {
+    const logLimit = limit ?? 100
+    const logs = await this.exec(
+      this.logCommand(logLimit, author, from, to),
+    ).then(this.lines)
     if (isEmpty(logs)) {
       return
     }
-    const data = this.lines(logs).map((it) =>
-      it.split("│").map((it, idx) => ds[idx]?.(it)),
+    await this.pageTable(
+      ["Hash\nDate", "Author\nTime", "Message\nRef"],
+      logs.map((it) => it.split("│")),
+      tableConfig({ cols: [1.5, 1.5, 7] }),
+      this.logParse,
     )
-    printTable(
-      [title(["Hash", "Author", "Message", "Date"]), ...data],
-      tableConfig([1, 1, 3.5, 2.5]),
+  }
+
+  private pageTable = async (
+    titleStr: string[],
+    data: string[][],
+    config: TableUserConfig,
+    rowParse: (s: string[]) => string[],
+  ) => {
+    const tableStr = (tableData: string[][]) =>
+      table([title(titleStr), ...tableData.map(rowParse)], config)
+    await page({ data: this.tableDataPartation(data).map(tableStr) })
+  }
+
+  private tableDataPartation = (data: string[][], pageSize: number = 5) => {
+    return data.reduce(
+      (result, item, index) => {
+        const chunkIndex = Math.floor(index / pageSize)
+        if (!result[chunkIndex]) {
+          result[chunkIndex] = []
+        }
+        result[chunkIndex].push(item)
+        return result
+      },
+      [] as string[][][],
     )
+  }
+
+  private logParse = (str: string[]) => {
+    const l = str.map((s) => s.trim())
+    const hash = color.yellow(l[0])
+    const author = color.blue(l[1])
+    const message = color.pink(l[2])
+    const dateTime = l[3].split(" ")
+    const date = color.mauve(dateTime[0])
+    const time = color.mauve(dateTime[1])
+    const ref = l[4]
+      .split(",")
+      .filter((it) => it)
+      .map(this.refParse)
+      .join("\n")
+    return [
+      `${hash}\n${date}`,
+      `${author}\n${time}`,
+      ref ? `${message}\n${ref}` : message,
+    ]
+  }
+
+  private logCommand = (
+    limit?: number,
+    author?: string,
+    from?: string,
+    to?: string,
+  ) => {
+    let command = `git log --oneline --format="%h│%an│%s│%ad│%D" --date=format:"%Y-%m-%d %H:%M:%S"`
+    const initCommand = command
+    if (limit) {
+      command = `${command} -n ${limit}`
+    }
+    if (author) {
+      command = `${command} --author=${author} -n ${limit}`
+    }
+    if (from) {
+      command = `${command} --since="${from}"`
+    }
+    if (to) {
+      command = `${command} --before="${to}"`
+    }
+    if (initCommand == command) {
+      command = `${command} -n ${limit}`
+    }
+    return command
+  }
+
+  private refParse = (name: string): string => {
+    const origin = "\u21c4"
+    const head = "\u27a4"
+    const local = "\u270e"
+    const tag = "\u2691"
+    const match = (str: string) => name.trim().startsWith(str)
+    const iconShow = (icon: string, c: ChalkInstance) =>
+      c(`${icon} ${name.trim()}`)
+    if (match("origin")) {
+      return iconShow(origin, color.sky)
+    }
+    if (match("HEAD ->")) {
+      return iconShow(head, color.green)
+    }
+    if (match("tag:")) {
+      return iconShow(tag, color.red)
+    }
+    return iconShow(local, color.peach)
   }
 
   status = async () => {
@@ -54,7 +144,7 @@ export default class GitAlias implements IGitAlias {
     )
     printTable(
       [title(["Stash", "Change", "File"]), ...data],
-      tableConfig([1, 1, 3]),
+      tableConfig({ cols: [1, 2, 3] }),
     )
   }
   push = async () => {
@@ -63,39 +153,52 @@ export default class GitAlias implements IGitAlias {
   pull = async () => await this.execPrint("git pull")
 
   branchList = async (name?: string, isListAll?: boolean) => {
-    await this.exec(`git branch ${isListAll ? "-a" : "-l"}`)
+    const data = await this.exec(`git branch ${isListAll ? "-a" : "-l"}`)
       .then((logs) => this.branchNames(logs, false, name))
-      .then((names) =>
-        names.map((it) =>
-          it.startsWith("*")
-            ? [color.yellow(it.replace("*", "").trim())]
-            : [color.blue(it.trim())],
-        ),
+      .then((names) => names.map((it) => [it]))
+    const parse = (names: string[]) => {
+      return names.map((it) =>
+        it.startsWith("*")
+          ? color.yellow(it.replace("*", "").trim())
+          : color.blue(it.trim()),
       )
-      .then((it) => printTable([title(["Name"]), ...it], tableDefaultConfig))
+    }
+    await this.pageTable(["Branch Name"], data, tableDefaultConfig, parse)
   }
 
   branchNew = async (name: string, origin: boolean = false) => {
     if (origin) {
-      await this.branchAction(
-        (s) => `git switch -t ${s}`,
-        name,
-        "-a",
-        (it) => it.startsWith("remotes") && !it.includes("->"),
-      )
+      await this.branchAction({
+        action: (s) => `git switch -t ${s}`,
+        nameFilter: name,
+        listOption: "-a",
+        branchFilter: (it) => it.startsWith("remotes") && !it.includes("->"),
+      })
       return
     }
     await this.execPrint(`git switch -c ${name}`)
   }
 
   branchCheckout = async (name?: string) =>
-    await this.branchAction((s) => `git switch ${s}`, name)
+    await this.branchAction({
+      action: (s) => `git switch ${s}`,
+      nameFilter: name,
+    })
   branchMerge = async (name?: string) =>
-    await this.branchAction((s) => `git merge ${s}`, name)
+    await this.branchAction({
+      action: (s) => `git merge ${s}`,
+      nameFilter: name,
+    })
   branchRebase = async (name?: string) =>
-    await this.branchAction((s) => `git rebase ${s}`, name)
+    await this.branchAction({
+      action: (s) => `git rebase ${s}`,
+      nameFilter: name,
+    })
   branchDelete = async (name?: string) =>
-    await this.branchAction((s) => `git branch -D ${s}`, name)
+    await this.branchAction({
+      action: (s) => `git branch -D ${s}`,
+      nameFilter: name,
+    })
 
   stashList = async () => {
     const stashInfos = await this.stashInfo()
@@ -106,8 +209,8 @@ export default class GitAlias implements IGitAlias {
     const ds = [color.yellow, color.blue, color.pink, color.mauve]
     const data = stashInfos.map((row) => row.map((it, idx) => ds[idx]?.(it)))
     printTable(
-      [title(["StashNo", "Message", "Autore", "Date"]), ...data],
-      tableConfig([1, 3, 1, 1]),
+      [title(["StashNo", "Message", "Author", "Date"]), ...data],
+      tableConfig({ cols: [1, 3, 1, 1] }),
     )
   }
 
@@ -115,21 +218,31 @@ export default class GitAlias implements IGitAlias {
     await this.exec(`git stash push -m ${name}`).then(() => this.stashList())
   stashPop = async () => await this.exec(`git stash pop`).then(this.status)
   stashShow = async () =>
-    await this.stashAction(async (s) => {
-      await this.exec(`git stash show -p ${s}`).then(printCmdLog)
+    await this.stashAction({
+      action: (s: string) => `git stash apply ${s}`,
+      isPrint: true,
     })
+
   stashApply = async () =>
-    await this.stashAction(async (s) => {
-      await this.exec(`git stash apply ${s}`).then(printCmdLog)
+    await this.stashAction({
+      action: (s: string) => `git stash apply ${s}`,
+      isPrint: true,
     })
+
   stashDrop = async () =>
-    await this.stashAction(async (s) => {
-      await this.exec(`git stash drop ${s}`).then(printCmdLog)
+    await this.stashAction({
+      action: (s: string) => `git stash drop ${s}`,
+      isPrint: true,
     })
+
   add = async () =>
-    await this.fileProcess("Select Add Files:", `git add`, this.changedFile)
+    await this.batchFileProcess(
+      "Select Add Files:",
+      `git add`,
+      this.changedFile,
+    )
   restore = async () =>
-    await this.fileProcess(
+    await this.batchFileProcess(
       "Select Restore Files:",
       "git restore --staged",
       this.stagedFile,
@@ -163,17 +276,35 @@ export default class GitAlias implements IGitAlias {
   }
 
   rollbackFileChanges = async () =>
-    await this.fileProcess(
-      "Select Rollback Files:",
-      "git checkout HEAD --",
-      this.changedFile,
-      false,
-    )
+    await this.singleFileProcess({
+      message: "Select Rollback Files:",
+      command: "git checkout HEAD --",
+      logs: this.changedFile,
+    })
 
-  fileDiff = async () =>
-    await this.singleFileProcess("Select Diff File:", "git diff", () =>
-      this.statusLogFilter(() => true),
+  summaryChanges = async (author?: string, from?: string, to?: string) => {
+    const spinner = ora(oraText("Extract Git Commit...")).start()
+    let command = `git log --oneline --format="%s"`
+    if (author) {
+      command = `${command} --author="${author}"`
+    }
+    if (from) {
+      command = `${command} --since="${from}"`
+    }
+    if (to) {
+      command = `${command} --before="${to}"`
+    }
+    const commits = await this.exec(command)
+    spinner.succeed(oraText("Summary..."))
+    await this.client.stream(
+      [this.client.system(gitLogSummary), this.client.user(commits)],
+      this.client.defaultModel(),
+      temperature.codeOrMath[1],
+      async (str: string) => {
+        process.stdout.write(str)
+      },
     )
+  }
 
   private commitWithMessage = async () => {
     const spinner = ora(oraText("Extract Git Diff...")).start()
@@ -191,29 +322,101 @@ export default class GitAlias implements IGitAlias {
           let msg = str
           if (!isEmpty(answer)) {
             msg = answer
-            return
           }
-          const cmd = `git commit -m '${msg}'`
+          const cmd = `git commit -m '${msg.trim()}'`
           this.execPrint(cmd)
         })
       },
     )
   }
 
-  private statusLogFilter = async (f: (str: string[]) => boolean) =>
-    await this.statusShortLogInfo("git status -sunormal").then((it) =>
-      it.filter(f),
-    )
-  private changedFile = async () =>
-    await this.statusLogFilter((str: string[]) => str[1] !== " ")
-  private stagedFile = async () =>
-    await this.statusLogFilter((str: string[]) => ![" ", "?"].includes(str[0]))
+  fileDiff = async () =>
+    await this.singleFileProcess({
+      message: "Select Changed File:",
+      command: "git diff",
+      logs: this.statusLogs,
+      isPrint: true,
+      format: this.diffFormat,
+    })
 
-  private fileProcess = async (
+  private lineSurgery = (
+    str: string,
+    key: string,
+    keyColor?: ChalkInstance,
+  ) => {
+    return (f: (s: string, i?: number) => string) =>
+      str
+        .split(key)
+        .map(f)
+        .join(keyColor ? keyColor(key) : key)
+  }
+
+  private diffFormat = (str: string) => {
+    return this.lineSurgery(str, "\n")(this.diffLineFormat())
+  }
+
+  private diffLineFormat = () => {
+    const thirdLayer = (s: string) => {
+      const sp = (str: string) => {
+        if (str.startsWith("-")) {
+          return color.maroon(str)
+        }
+        if (str.startsWith("+")) {
+          return color.teal(str)
+        }
+        return color.mauve(str)
+      }
+      return this.lineSurgery(s, ",")(sp)
+    }
+
+    const secondLayer = (s: string, i?: number) =>
+      i !== 1 ? s : this.lineSurgery(s, " ")(thirdLayer)
+
+    const parse: Record<string, (l: string) => string> = {
+      "---": this.colorApply(color.blue),
+      "-": this.colorApply(color.red),
+      "+++": this.colorApply(color.yellow),
+      "+": this.colorApply(color.green),
+      "@@": (l) => this.lineSurgery(l, "@@", color.sky)(secondLayer),
+    }
+    return (s: string) =>
+      this.lineParse({
+        line: s,
+        parse,
+      })
+  }
+
+  private lineParse = ({
+    line,
+    parse,
+    parseAfter = (str: string) => str,
+  }: {
+    line: string
+    parse: Record<string, (str: string) => string>
+    parseAfter?: (str: string) => string
+  }) => {
+    const key = Object.keys(parse).find((k) => line.startsWith(k))
+    if (key) {
+      return parse[key](line)
+    }
+    return parseAfter ? parseAfter(line) : line
+  }
+
+  private colorApply = (c: ChalkInstance) => (l: string) => c(l)
+
+  private statusLogs = async () =>
+    await this.statusShortLogInfo("git status -sunormal")
+  private changedFile = async () =>
+    await this.statusLogs().then((it) => it.filter((str) => str[1] !== " "))
+  private stagedFile = async () =>
+    await this.statusLogs().then((it) =>
+      it.filter((str) => ![" ", "?"].includes(str[0])),
+    )
+
+  private batchFileProcess = async (
     message: string,
     commandPre: string,
     logs: () => Promise<string[][]>,
-    singleRun: boolean = true,
   ) => {
     const statusShortLog = await logs()
     if (isEmpty(statusShortLog)) {
@@ -227,38 +430,66 @@ export default class GitAlias implements IGitAlias {
       if (isEmpty(answer)) {
         return
       }
-      if (singleRun) {
-        await this.exec(`${commandPre} ${answer.join(" ")}`)
-        return
-      }
       answer.forEach((it) => this.exec(`${commandPre} ${it}`))
     })
   }
 
-  private singleFileProcess = async (
-    message: string,
-    commandPre: string,
-    logs: () => Promise<string[][]>,
-    disablePrint: boolean = true,
-  ) => {
+  private singleFileProcess = async ({
+    message,
+    command,
+    logs,
+    isPrint = false,
+    format,
+  }: {
+    message: string
+    command: string
+    logs: () => Promise<string[][]>
+    isPrint?: boolean
+    format?: (s: string) => string
+  }) => {
     const statusShortLog = await logs()
     if (isEmpty(statusShortLog)) {
       printErr("Nothing To Processing.")
       return
     }
-    await select({
+    await this.selectAction({
       message,
       choices: statusShortLog.map((it) => ({ name: it[2], value: it[2] })),
+      action: (str: string) => `${command} ${str}`,
+      isPrint,
+      format,
+    })
+  }
+
+  private selectAction = async ({
+    message,
+    choices,
+    action,
+    isPrint = false,
+    format,
+  }: {
+    message: string
+    choices: { name: string; value: string }[]
+    action: (str: string) => string
+    isPrint?: boolean
+    format?: (str: string) => string
+  }) => {
+    if (isEmpty(choices)) {
+      printErr("Nothing To Process.")
+      return
+    }
+    await select({
+      message,
+      choices,
     }).then(async (answer) => {
       if (isEmpty(answer)) {
         return
       }
-      const command = `${commandPre} ${answer}`
-      if (disablePrint) {
-        await this.execPrint(command)
+      if (isPrint) {
+        await this.execPrint(action(answer), format)
         return
       }
-      await this.exec(command)
+      await this.exec(action(answer))
     })
   }
 
@@ -276,15 +507,27 @@ export default class GitAlias implements IGitAlias {
     ])
   }
 
-  private stashAction = async (f: (str: string) => Promise<void>) => {
+  private stashAction = async ({
+    action,
+    isPrint = false,
+  }: {
+    action: (str: string) => string
+    isPrint: boolean
+  }) => {
     const stashInfos = await this.stashInfo()
     if (isEmpty(stashInfos)) {
       printErr("Stash Is Empty.")
       return
     }
     const choices = stashInfos.map((it) => ({ name: it[1], value: it[0] }))
-    selectRun("Select Stassh:", choices, async (s) => await f(s))
+    await this.selectAction({
+      message: "Select Stassh:",
+      choices,
+      action,
+      isPrint,
+    })
   }
+
   private stashInfo = async () => {
     const command = `git stash list --pretty=format:'%gd│%gs│%an│%cr'`
     const logs = await this.exec(command)
@@ -294,32 +537,49 @@ export default class GitAlias implements IGitAlias {
     return this.lines(logs).map((it) => it.split("│"))
   }
 
-  private branchAction = async (
-    cf: (str: string) => string,
-    name?: string,
-    opt?: string,
-    cuf?: (branchName: string) => boolean,
-  ) => {
-    const choices = await this.exec(`git branch ${opt ? opt : "-l"}`)
-      .then((logs) =>
-        this.branchNames(logs, true, name).filter((it) =>
-          cuf ? cuf(it) : true,
-        ),
+  private branchAction = async ({
+    action,
+    nameFilter,
+    listOption,
+    branchFilter,
+    format,
+  }: {
+    action: (str: string) => string
+    nameFilter?: string
+    listOption?: string
+    branchFilter?: (branchName: string) => boolean
+    format?: (str: string) => string
+  }) => {
+    const calBranchName = (logs: string) =>
+      this.branchNames(logs, true, nameFilter).filter((it) =>
+        branchFilter ? branchFilter(it) : true,
       )
-      .then((names) => names.map((it) => ({ name: it, value: it })))
-    if (isEmpty(choices)) {
-      printErr("Branch Not Match.")
-      return
-    }
-    selectRun(
-      "Select Branch:",
-      choices,
-      async (s) => await this.execPrint(cf(s)),
+    const mapToChoices = (names: string[]) =>
+      names.map((it) => ({ name: it, value: it }))
+    const choices = await this.exec(
+      `git branch ${listOption ? listOption : "-l"}`,
     )
+      .then(calBranchName)
+      .then(mapToChoices)
+    await this.selectAction({
+      message: "Select Branch:",
+      choices,
+      action,
+      format,
+    })
   }
 
-  private execPrint = async (command: string) =>
-    printCmdLog(await this.exec(command))
+  private execPrint = async (
+    command: string,
+    format?: (s: string) => string,
+  ) => {
+    const cl = await this.exec(command)
+    if (format) {
+      console.log(format(cl))
+      return
+    }
+    printCmdLog(cl)
+  }
 
   private exec = async (command: string): Promise<string> => {
     try {
@@ -335,6 +595,7 @@ export default class GitAlias implements IGitAlias {
       .trim()
       .split("\n")
       .map((it) => it.trim())
+
   private branchNames = (
     logs: string,
     exCurr: boolean,
@@ -343,5 +604,44 @@ export default class GitAlias implements IGitAlias {
     return this.lines(logs)
       .filter((str) => (nameFilter ? str.includes(nameFilter) : true))
       .filter((it) => (exCurr ? !it.startsWith("*") : true))
+  }
+
+  tagShow = async (tagName?: string) => {
+    const tags = (
+      await this.exec(`git tag`).then((it) => it.split("\n"))
+    ).filter((it) => (tagName ? it.includes(tagName) : true))
+    if (isEmpty(tags)) {
+      printErr("Tags Is Empty.")
+      return
+    }
+    const choices = tags.map((it) => ({ name: it, value: it }))
+    await this.selectAction({
+      message: "Select A Tag: ",
+      action: (s: string) => `git show ${s}`,
+      choices,
+      isPrint: true,
+      format: this.tagFormat,
+    })
+  }
+
+  private tagFormat = (s: string) => {
+    const lineParse = (line: string) => {
+      const keyShow = (k: string, c: ChalkInstance) => (str: string) =>
+        this.lineSurgery(str, k, color.teal)(this.colorApply(c))
+      const parse: Record<string, (str: string) => string> = {
+        tag: (str) => keyShow("tag", color.yellow)(str),
+        "Tagger:": (str) => keyShow("Tagger:", color.green)(str),
+        "Date:": (str) => keyShow("Date:", color.mauve)(str),
+        "Author:": (str) => keyShow("Author:", color.flamingo)(str),
+        "Merge:": (str) => keyShow("Merge:", color.pink)(str),
+        commit: (str) => keyShow("commit", color.maroon)(str),
+      }
+      return this.lineParse({
+        line,
+        parse,
+        parseAfter: this.diffLineFormat(),
+      })
+    }
+    return this.lineSurgery(s, "\n")(lineParse)
   }
 }
