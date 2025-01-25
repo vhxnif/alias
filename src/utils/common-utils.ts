@@ -1,4 +1,3 @@
-import { select } from "@inquirer/prompts"
 import { table, type TableUserConfig } from "table"
 import { color, style } from "./color-utils"
 import type { ChalkInstance } from "chalk"
@@ -86,7 +85,6 @@ export {
   printCmdLog,
   printErr,
   printTable,
-  selectRun,
   tableConfig,
   oraText,
   title,
