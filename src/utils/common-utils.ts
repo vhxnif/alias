@@ -1,6 +1,8 @@
 import { table, type TableUserConfig } from "table"
 import { color, style } from "./color-utils"
 import type { ChalkInstance } from "chalk"
+import os from "node:os"
+import path from "path"
 
 const terminal: Record<string, number> = {
   column: process.stdout.columns,
@@ -81,6 +83,23 @@ const oraText = (str: string) => style.bold(str)
 const title = (strs: string[]) =>
   strs.map((str) => color.green(style.bold(str)))
 
+const uuid = () => Bun.randomUUIDv7().replaceAll("-", "")
+
+const editor = async (content: string, f: (tmp: string) => Promise<void>) => {
+  const editor = Bun.env["EDITOR"]
+  if (!editor) {
+    console.error(`$EDITOR is missing`)
+    return
+  }
+  const tmpFile = path.join(os.tmpdir(), `tmp-${uuid()}.md`)
+  await Bun.write(tmpFile, content, { createPath: false })
+  const proc = Bun.spawn([editor, tmpFile], {
+    stdio: ["inherit", "inherit", "inherit"],
+  })
+  await proc.exited
+    .then(async () => await f(tmpFile))
+    .finally(async () => await Bun.file(tmpFile).delete())
+}
 export {
   printCmdLog,
   printErr,
@@ -91,4 +110,5 @@ export {
   tableDefaultConfig,
   terminal,
   mark,
+  editor,
 }

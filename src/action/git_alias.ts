@@ -1,4 +1,4 @@
-import { checkbox, input, select } from "@inquirer/prompts"
+import { checkbox, select } from "@inquirer/prompts"
 import { $, ShellError } from "bun"
 import { isEmpty } from "lodash"
 import ora from "ora"
@@ -6,6 +6,7 @@ import type { IGitAlias } from "../type/git-alias-type"
 import type { ILLMClient } from "../type/llm-types"
 import { color } from "../utils/color-utils"
 import {
+  editor,
   oraText,
   printCmdLog,
   printErr,
@@ -238,7 +239,7 @@ export default class GitAlias implements IGitAlias {
   add = async () =>
     await this.batchFileProcess(
       "Select Add Files:",
-      `git add`,
+      `git add -- `,
       this.changedFile,
     )
   restore = async () =>
@@ -247,32 +248,14 @@ export default class GitAlias implements IGitAlias {
       "git restore --staged",
       this.stagedFile,
     )
+
   commit = async () => {
-    const checkStageFileRun = async () => {
-      const stageFile = await this.stagedFile()
-      if (isEmpty(stageFile)) {
-        printErr("No Changes To Commit.")
-        return
-      }
-      await this.commitWithMessage()
-    }
-    const addFile = await this.changedFile()
-    if (isEmpty(addFile)) {
-      checkStageFileRun()
+    const stageFile = await this.stagedFile()
+    if (isEmpty(stageFile)) {
+      printErr("No Changes To Commit.")
       return
     }
-    await checkbox({
-      message: "Select Add Files:",
-      choices: addFile.map((it) => ({ name: it[2], value: it[2] })),
-    }).then(async (answer) => {
-      if (isEmpty(answer)) {
-        checkStageFileRun()
-        return
-      }
-      await this.exec(`git add ${answer.join(" ")}`).then(
-        this.commitWithMessage,
-      )
-    })
+    await this.commitWithMessage()
   }
 
   rollbackFileChanges = async () =>
@@ -316,16 +299,10 @@ export default class GitAlias implements IGitAlias {
       temperature.codeOrMath[1],
       async (str: string) => {
         spinner.succeed(oraText("Summary completed!!!"))
-        await input({
-          message: color.mauve(str),
-        }).then((answer) => {
-          let msg = str
-          if (!isEmpty(answer)) {
-            msg = answer
-          }
-          const cmd = `git commit -m '${msg.trim()}'`
-          this.execPrint(cmd)
-        })
+        await editor(
+          str,
+          async (tmp) => await this.execPrint(`git commit -F "${tmp}"`),
+        )
       },
     )
   }
@@ -430,7 +407,7 @@ export default class GitAlias implements IGitAlias {
       if (isEmpty(answer)) {
         return
       }
-      answer.forEach((it) => this.exec(`${commandPre} ${it}`))
+      this.exec(`${commandPre} ${answer.join(" ")}`)
     })
   }
 

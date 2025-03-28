@@ -43,24 +43,24 @@
   "type": "module",
   "devDependencies": {
     "@commander-js/extra-typings": "^12.1.0",
-    "@eslint/js": "^9.15.0",
+    "@eslint/js": "^9.23.0",
     "@types/bun": "latest",
-    "@types/lodash": "^4.17.7",
-    "bun-types": "^1.1.28",
-    "eslint": "^9.15.0",
-    "globals": "^15.12.0",
-    "typescript-eslint": "^8.15.0"
+    "@types/lodash": "^4.17.16",
+    "bun-types": "^1.2.7",
+    "eslint": "^9.23.0",
+    "globals": "^15.15.0",
+    "typescript-eslint": "^8.28.0"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@inquirer/prompts": "^7.1.0",
-    "chalk": "^5.3.0",
+    "@inquirer/prompts": "^7.4.0",
+    "chalk": "^5.4.1",
     "commander": "^12.1.0",
     "lodash": "^4.17.21",
-    "openai": "^4.76.0",
-    "ora": "^8.1.1",
-    "table": "^6.8.2"
+    "openai": "^4.90.0",
+    "ora": "^8.2.0",
+    "table": "^6.9.0"
   }
 }
