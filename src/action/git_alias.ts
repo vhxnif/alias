@@ -149,7 +149,7 @@ export default class GitAlias implements IGitAlias {
     )
   }
   push = async () => {
-    await this.exec("git push")
+    await this.exec("git push").then(async () => await this.log())
   }
   pull = async () => await this.execPrint("git pull")
 
