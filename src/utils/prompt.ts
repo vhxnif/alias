@@ -1,6 +1,4 @@
-
-export const gitCommitMessage = 
-`
+export const gitCommitMessage = `
 # 角色 
 
 您是一位专业的项目经理和开发人员，擅长创建超级干净的Git diff变更说明。
@@ -38,8 +36,7 @@ export const gitCommitMessage =
 - "revert:"，回退了提交的修改。
 `
 
-export const gitLogSummary = 
-`
+export const gitLogSummary = `
 # 角色 
 
 您是一位专业的项目经理和开发人员，可以根据一段时间内的git commit信息，总结出超级干净的关键更新。

@@ -1,10 +1,15 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { git } from "../type/context"
+import { changedFile, singleFileAction } from "../action/git-common-action"
 
 new Command()
-    .name('gfr')
-    .description('git checkout HEAD -- <file>')
-    .action(async () => await git.rollbackFileChanges())
-    .parseAsync()
-
+  .name("gfr")
+  .description("git checkout HEAD -- <file>")
+  .action(async () => {
+    await singleFileAction({
+      message: "Select Rollback Files:",
+      command: "git checkout HEAD --",
+      logs: changedFile,
+    })
+  })
+  .parseAsync()
