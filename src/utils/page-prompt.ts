@@ -28,7 +28,6 @@ export default createPrompt<number, ConfirmConfig>((config, done) => {
   useKeypress((key, rl) => {
     const show = (f: (i: number) => number) => {
       setValue(f(value))
-      rl.write(data[value])
     }
     const isKey = (str: string) => key.name === str
     if (isKey("k")) {
@@ -42,6 +41,6 @@ export default createPrompt<number, ConfirmConfig>((config, done) => {
   })
   const key = (str: string) => theme.style.key(str)
   const currPage = `${value + 1}/${data.length}`
-  const message = `CurrPage ${key(currPage)}, NextPage ${key("j")}, PrevPage ${key("k")}, Exit ${key("q")}`
+  const message = `Page ${key(currPage)}, Prev ${key("k")}, Next ${key("j")}, Exit ${key("q")}`
   return `${data[value]}${message}`
 })

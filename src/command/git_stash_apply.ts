@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { git } from "../type/context"
+import { stashAction } from "../action/git-common-action"
 
 new Command()
-    .name('gsu')
-    .description('git stash apply')
-    .action(async () => await git.stashApply())
-    .parseAsync()
-
+  .name("gsu")
+  .description("git stash apply")
+  .action(async () => {
+    await stashAction({
+      action: (s: string) => `git stash apply ${s}`,
+      isPrint: true,
+    })
+  })
+  .parseAsync()

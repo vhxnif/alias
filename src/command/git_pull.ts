@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { git } from "../type/context"
+import { execPrint } from "../action/git-common-action"
 
 new Command()
-    .name('gpl')
-    .description('git pull')
-    .action(async () => await git.pull())
-    .parseAsync()
-
+  .name("gpl")
+  .description("git pull")
+  .action(async () => {
+    await execPrint("git pull")
+  })
+  .parseAsync()

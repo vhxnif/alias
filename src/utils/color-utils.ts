@@ -40,10 +40,4 @@ const display = {
   error: color.red,
 }
 
-const style = {
-  bold: chalk.bold,
-  underline: chalk.underline,
-  italic: chalk.italic,
-}
-
-export { color, style, display }
+export { color, display }
