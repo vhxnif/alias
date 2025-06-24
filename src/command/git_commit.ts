@@ -11,7 +11,7 @@ import { editor, exec } from "../utils/platform-utils"
 import { gitCommitMessage } from "../utils/prompt"
 
 const client: ILLMClient =
-  process.env.GIT_ALIAS === "ollama" ? new OllamaClient() : new OpenAiClient()
+  process.env.ALIAS_TYPE === "ollama" ? new OllamaClient() : new OpenAiClient()
 
 async function commitWithMessage() {
   const spinner = ora(color.blue.bold("Extract Git Diff...")).start()

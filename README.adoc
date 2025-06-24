@@ -19,11 +19,14 @@ bun run build && bun link
 .env
 [source, bash]
 ----
-# default https://api.deepseek.com
-export OPENAI_BASE_URL = <your openai based url> 
-export OPENAI_API_KEY = <your api key>
-# default deepseek-chat
-export OPENAI_DEFAULT_MODEL = <your default model> 
+# openai api
+export ALIAS_BASE_URL = <base url>
+export ALIAS_API_KEY = <api key>
+export ALIAS_DEFAULT_MODEL = <default model>
+# ollama
+export ALIAS_OLLAMA_BASE_URL = <ollama url>
+export ALIAS_OLLAMA_DEFAULT_MODEL = <default model>
+export ALIAS_TYPE = 'ollama'
 ----
 
 == Git Alias
