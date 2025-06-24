@@ -9,7 +9,7 @@ import { exec } from "../utils/platform-utils"
 import { gitLogSummary } from "../utils/prompt"
 
 const client: ILLMClient =
-  process.env.GIT_ALIAS === "ollama" ? new OllamaClient() : new OpenAiClient()
+  process.env.ALIAS_TYPE === "ollama" ? new OllamaClient() : new OpenAiClient()
 
 new Command()
   .name("gcs")

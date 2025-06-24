@@ -5,11 +5,11 @@ export class OllamaClient implements ILLMClient {
   ollama: Ollama
   constructor() {
     this.ollama = new Ollama({
-      host: process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",
+      host: process.env.ALIAS_OLLAMA_BASE_URL ?? "http://127.0.0.1:11434",
     })
   }
 
-  defaultModel = () => (process.env.OLLAMA_DEFAULT_MODEL = "deepseek-r1:1.5b")
+  defaultModel = () => (process.env.ALIAS_OLLAMA_DEFAULT_MODEL = "deepseek-r1:1.5b")
 
   user = (content: string): LLMMessage => this.message("user", content)
 
