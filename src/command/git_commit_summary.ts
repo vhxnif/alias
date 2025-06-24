@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import ora from "ora"
+import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
-import type { ILLMClient } from "../llm/llm-types"
 import { color } from "../utils/color-utils"
 import { exec } from "../utils/platform-utils"
 import { gitLogSummary } from "../utils/prompt"
@@ -19,7 +19,7 @@ new Command()
   .option("-t, --to <to>", "yyyy-MM-dd")
   .action(async (option) => {
     const { author, from, to } = option
-    const spinner = ora(color.blue.bold("Sumary...")).start()
+    const spinner = ora(color.blue.bold("Summary...")).start()
     let command = `git log --format="%s\n%b"`
     if (author) {
       command = `${command} --author="${author}"`
