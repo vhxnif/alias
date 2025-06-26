@@ -12,6 +12,7 @@ new Command()
   .action(() =>
     printTable(
       [
+        title(["Alias", "Core Command"]),
         ["gpl", "git pull"],
         ["gps", "git push"],
         ["gbl", "git branch list"],
@@ -37,7 +38,7 @@ new Command()
         ["gts", "git show <tag>"],
         title(["Alias", "Core Command"]),
       ].map((it) => [key(it[0]), value(it[1])]),
-      tableConfig({ cols: [1, 3] })
-    )
+      tableConfig({ cols: [1, 3] }),
+    ),
   )
   .parseAsync()

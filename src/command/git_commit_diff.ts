@@ -77,16 +77,14 @@ new Command()
     }).then(async (answer) => {
       const beforeCommit = diff(answer)
       if (beforeCommit) {
-        const text = await exec(`git diff ${beforeCommit} ${answer}`)
-        console.log(text)
+        console.log(await exec(`git diff ${beforeCommit} ${answer}`))
         return
       }
       await select({
         message: "Select Commit:",
         choices,
       }).then(async (bef) => {
-        const text = await exec(`git diff ${bef} ${answer}`)
-        console.log(text)
+        console.log(await exec(`git diff ${bef} ${answer}`))
       })
     })
   })
