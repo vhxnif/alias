@@ -3,7 +3,7 @@ import { Command } from "commander"
 import { statusShortLog, title } from "../action/git-common-action"
 import { color } from "../utils/color-utils"
 import { printTable, tableConfig } from "../utils/table-utils"
-import { isEmpty } from "../utils/common-utils"
+import { isEmpty, printErr } from "../utils/common-utils"
 
 new Command()
   .name("gs")
@@ -20,7 +20,13 @@ new Command()
     ])
     printTable(
       [title(["Stash", "Change", "File"]), ...data],
-      tableConfig({ cols: [1, 1, 4] })
+      tableConfig({ cols: [1, 1, 4] }),
     )
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

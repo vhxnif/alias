@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { changedFile, singleFileAction } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gfr")
@@ -13,3 +14,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

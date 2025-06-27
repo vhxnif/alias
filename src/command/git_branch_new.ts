@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { branchAction, execPrint } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gbn")
@@ -10,9 +11,9 @@ new Command()
   .action(async (name, option) => {
     if (option.track) {
       await branchAction({
+        name,
+        listAll: true,
         action: (s) => `git switch -t ${s}`,
-        nameFilter: name,
-        listOption: "-a",
         branchFilter: (it) => it.startsWith("remotes") && !it.includes("->"),
       })
       return
@@ -20,3 +21,9 @@ new Command()
     await execPrint(`git switch -c ${name}`)
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

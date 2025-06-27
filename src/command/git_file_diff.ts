@@ -5,6 +5,7 @@ import {
   singleFileAction,
   statusShortLog,
 } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gfc")
@@ -19,3 +20,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

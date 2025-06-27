@@ -18,7 +18,13 @@ new Command()
     const data = stashInfos.map((row) => row.map((it, idx) => ds[idx]?.(it)))
     printTable(
       [title(["StashNo", "Message", "Author", "Date"]), ...data],
-      tableConfig({ cols: [1, 3, 1, 1] })
+      tableConfig({ cols: [1, 3, 1, 1] }),
     )
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })
