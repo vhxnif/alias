@@ -9,3 +9,10 @@ new Command()
     await batchFileAction("Select Add Files:", `git add -- `, changedFile)
   })
   .parseAsync()
+
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

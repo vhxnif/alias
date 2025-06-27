@@ -7,6 +7,7 @@ import {
 } from "../store/branch-history-store"
 import Database from "bun:sqlite"
 import { rule } from "../utils/bus-utils"
+import { printErr } from "../utils/common-utils"
 
 const path = await branchHisDataPath()
 const branchHistory = new BranchHistoryStore(new Database(path))
@@ -36,12 +37,18 @@ new Command()
   .argument("[name]", "barnch name", "")
   .action(async (name) => {
     await branchAction({
+      name,
       action: (s) => `git merge ${s}`,
-      nameFilter: name,
       branchSort: (s) => sortBranch(s, name),
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })
   .finally(() => {
     if (branchHistory) {
       branchHistory.close()

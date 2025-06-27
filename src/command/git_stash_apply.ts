@@ -12,3 +12,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

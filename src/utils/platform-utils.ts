@@ -28,7 +28,7 @@ async function editor(content: string, f: (tmp: string) => Promise<void>) {
 
 async function exec(command: string): Promise<string> {
   try {
-    return await $`${{ raw: command }}`.text()
+    return (await $`${{ raw: command }}`.text()).trim()
   } catch (err: unknown) {
     printErr((err as ShellError).stderr.toString())
     process.exit()

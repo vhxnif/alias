@@ -10,7 +10,7 @@ new Command()
   .argument("[name]", "barnch name", "")
   .action(async (name) => {
     const tags = (await exec(`git tag`).then((it) => it.split("\n"))).filter(
-      (it) => (name ? it.includes(name) : true)
+      (it) => (name ? it.includes(name) : true),
     )
     if (isEmpty(tags)) {
       printErr("Tags Is Empty.")
@@ -26,3 +26,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

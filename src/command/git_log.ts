@@ -6,13 +6,13 @@ import { lines, pageTable } from "../action/git-common-action"
 import { color } from "../utils/color-utils"
 import { exec, terminal } from "../utils/platform-utils"
 import { tableDefaultConfig } from "../utils/table-utils"
-import { isEmpty } from "../utils/common-utils"
+import { isEmpty, printErr } from "../utils/common-utils"
 
 function logCommand(
   limit?: number,
   author?: string,
   from?: string,
-  to?: string
+  to?: string,
 ) {
   let command = `git log --oneline --format="%h│%an│%s│%ad│%D" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
@@ -43,7 +43,7 @@ function logTableConfig(tableData: string[][]) {
       arr[1].push(...authorAndTime.split("\n"))
       return arr
     },
-    [[], []] as string[][]
+    [[], []] as string[][],
   )
   const maxWidth = (strs: string[]) =>
     strs
@@ -134,3 +134,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })
