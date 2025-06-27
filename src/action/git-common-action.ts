@@ -148,20 +148,14 @@ function lines(str: string): string[] {
     .map((it) => it.trim())
 }
 
-function branchNames(
-  logs: string,
-  exCurr: boolean,
-  nameFilter?: string,
-): string[] {
-  return lines(logs)
-    .filter((str) => (nameFilter ? str.includes(nameFilter) : true))
-    .filter((it) => (exCurr ? !it.startsWith("*") : true))
+function branchNames(logs: string, exCurr: boolean): string[] {
+  return lines(logs).filter((it) => (exCurr ? !it.startsWith("*") : true))
 }
 
 async function branchAction({
   action,
-  nameFilter,
-  listOption,
+  name,
+  listAll,
   branchFilter,
   format,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -169,20 +163,20 @@ async function branchAction({
   branchSort = (s) => s,
 }: {
   action: (str: string) => string
-  nameFilter?: string
-  listOption?: string
+  name?: string
+  listAll?: boolean
   branchFilter?: (branchName: string) => boolean
   format?: (str: string) => string
   beforeExec?: (str: string) => void
   branchSort?: (str: string[]) => string[]
 }): Promise<void> {
   const calBranchName = (logs: string) =>
-    branchNames(logs, true, nameFilter).filter((it) =>
+    branchNames(logs, true).filter((it) =>
       branchFilter ? branchFilter(it) : true,
     )
   const mapToChoices = (names: string[]) =>
     names.map((it) => ({ name: it, value: it }))
-  const choices = await exec(`git branch ${listOption ? listOption : "-l"}`)
+  const choices = await branchList({ all: listAll, name })
     .then(calBranchName)
     .then(branchSort)
     .then(mapToChoices)
@@ -361,6 +355,18 @@ async function branchHisDataPath() {
     .replaceAll(":", "")}.sqlite`
 }
 
+async function branchList({ all, name }: { all?: boolean; name?: string }) {
+  let cmd = `git branch ${all ? "-a" : "-l"}`
+  if (name) {
+    cmd = `${cmd} '*${name}*'`
+  }
+  const execText = await exec(cmd)
+  if (execText) {
+    return execText
+  }
+  throw Error("No Branch Matched.")
+}
+
 export {
   selectAction,
   statusShortLog,
@@ -370,6 +376,7 @@ export {
   singleFileAction,
   branchAction,
   branchNames,
+  branchList,
   stashAction,
   stashInfo,
   pageTable,
