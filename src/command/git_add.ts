@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { batchFileAction, changedFile } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gfa")
@@ -9,7 +10,6 @@ new Command()
     await batchFileAction("Select Add Files:", `git add -- `, changedFile)
   })
   .parseAsync()
-
   .catch((e: unknown) => {
     if (e instanceof Error) {
       printErr(e.message)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { isEmpty } from "../utils/common-utils"
+import { isEmpty, printErr } from "../utils/common-utils"
 import { select } from "@inquirer/prompts"
 import { exec } from "../utils/platform-utils"
 import { lines } from "../action/git-common-action"
@@ -89,3 +89,9 @@ new Command()
     })
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })
