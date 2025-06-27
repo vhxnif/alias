@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { stashAction } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gsd")

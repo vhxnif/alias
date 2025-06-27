@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { batchFileAction, stagedFile } from "../action/git-common-action"
+import { printErr } from "../utils/common-utils"
 
 new Command()
   .name("gfd")
@@ -9,7 +10,13 @@ new Command()
     await batchFileAction(
       "Select Restore Files:",
       "git restore --staged",
-      stagedFile
+      stagedFile,
     )
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })
