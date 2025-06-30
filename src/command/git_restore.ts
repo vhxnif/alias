@@ -1,22 +1,23 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { batchFileAction, stagedFile } from "../action/git-common-action"
-import { printErr } from "../utils/common-utils"
+import {
+  batchFileAction,
+  fileStaged,
+  gitFileRestore,
+} from "../action/file-command"
+import { errParse } from "../utils/command-utils"
 
 new Command()
   .name("gfd")
   .description("git restore --staged")
   .action(async () => {
-    await batchFileAction(
-      "Select Restore Files:",
-      "git restore --staged",
-      stagedFile,
-    )
+    await batchFileAction({
+      message: "Select Restore Files:",
+      fileFilter: fileStaged,
+      command: async (it) => {
+        await gitFileRestore(it)
+      },
+    })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

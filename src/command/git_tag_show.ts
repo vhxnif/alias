@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
+import { select } from "@inquirer/prompts"
 import { Command } from "commander"
-import { selectAction, tagFormat } from "../action/git-common-action"
+import { errParse } from "../utils/command-utils"
 import { isEmpty, printErr } from "../utils/common-utils"
-import { exec } from "../utils/platform-utils"
+import { exec, execPrint } from "../utils/platform-utils"
+import { tagFormat } from "../utils/diff-utils"
 
 new Command()
   .name("gts")
@@ -10,25 +12,18 @@ new Command()
   .argument("[name]", "barnch name", "")
   .action(async (name) => {
     const tags = (await exec(`git tag`).then((it) => it.split("\n"))).filter(
-      (it) => (name ? it.includes(name) : true),
+      (it) => (name ? it.includes(name) : true)
     )
     if (isEmpty(tags)) {
       printErr("Tags Is Empty.")
       return
     }
     const choices = tags.map((it) => ({ name: it, value: it }))
-    await selectAction({
+    const tag = await select({
       message: "Select A Tag: ",
-      action: (s: string) => `git show ${s}`,
       choices,
-      isPrint: true,
-      format: tagFormat,
     })
+    await execPrint(`git show ${tag}`, tagFormat)
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

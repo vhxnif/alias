@@ -5,9 +5,9 @@ import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
 import { color } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
 import { exec } from "../utils/platform-utils"
 import { gitLogSummary } from "../utils/prompt"
-import { printErr } from "../utils/common-utils"
 
 const client: ILLMClient =
   process.env.ALIAS_TYPE === "ollama" ? new OllamaClient() : new OpenAiClient()
@@ -46,9 +46,4 @@ new Command()
     })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

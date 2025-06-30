@@ -40,4 +40,8 @@ const display = {
   error: color.red,
 }
 
-export { color, display }
+function tableTitle(strs: string[]) {
+  return strs.map((it) => color.green.bold(it))
+}
+
+export { color, display, tableTitle }

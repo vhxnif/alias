@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-import { Command } from "commander"
-import { isEmpty, printErr } from "../utils/common-utils"
 import { select } from "@inquirer/prompts"
+import { Command } from "commander"
+import { errParse } from "../utils/command-utils"
+import { isEmpty, lines } from "../utils/common-utils"
 import { exec } from "../utils/platform-utils"
-import { lines } from "../action/git-common-action"
 
 function logCommand(
   limit?: number,
   author?: string,
   from?: string,
-  to?: string,
+  to?: string
 ) {
   let command = `git log --oneline --format="%h│%an│%s" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
@@ -89,9 +89,4 @@ new Command()
     })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)
