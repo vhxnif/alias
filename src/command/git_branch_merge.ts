@@ -1,56 +1,57 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { branchAction, branchHisDataPath } from "../action/git-common-action"
 import {
-  BranchHistory,
-  BranchHistoryStore,
-} from "../store/branch-history-store"
-import Database from "bun:sqlite"
+  branchAction,
+  branchHistory,
+  gitBranchMerge,
+  type Branch,
+} from "../action/branch-command"
+import { BranchHistory } from "../store/branch-history-store"
 import { rule } from "../utils/bus-utils"
-import { printErr } from "../utils/common-utils"
+import { errParse } from "../utils/command-utils"
 
-const path = await branchHisDataPath()
-const branchHistory = new BranchHistoryStore(new Database(path))
+const bs = await branchHistory()
 
-const sortBranch = (branchNames: string[], name: string) => {
-  const his = branchHistory.query(name)
-  const res = branchNames
+type BranchInfo = Branch & BranchHistory
+
+const sortBranch = (branchs: Branch[], name?: string) => {
+  if (!name) {
+    return branchs
+  }
+  const his = bs.query(name)
+  const res = branchs
     .map((it) => {
-      const h = his.find((i) => i.name === it)
+      const h = his.find((i) => i.name === it.name)
       if (h) {
-        return h
+        return h as BranchInfo
       }
       return {
-        name: it,
+        name: it.name,
         lastSwitchTime: 0,
         frequency: 0,
-      } as BranchHistory
+      } as BranchInfo
     })
     .sort((a, b) => rule(b) - rule(a))
-    .map((it) => it.name)
   return res
 }
 
 new Command()
   .name("gbm")
   .description("git merge <name>")
-  .argument("[name]", "barnch name", "")
+  .argument("[name]", "barnch name")
   .action(async (name) => {
     await branchAction({
       name,
-      action: (s) => `git merge ${s}`,
-      branchSort: (s) => sortBranch(s, name),
+      command: async (b: Branch) => {
+        await gitBranchMerge(b)
+      },
+      branchSort: (branchs: Branch[]) => sortBranch(branchs, name),
     })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)
   .finally(() => {
-    if (branchHistory) {
-      branchHistory.close()
+    if (bs) {
+      bs.close()
     }
   })

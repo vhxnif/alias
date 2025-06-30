@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { color } from "../utils/color-utils"
+import { color, tableTitle } from "../utils/color-utils"
 import { printTable, tableConfig } from "../utils/table-utils"
-import { title } from "../action/git-common-action"
 
 const key = color.yellow
 const value = color.sky
@@ -12,7 +11,7 @@ new Command()
   .action(() =>
     printTable(
       [
-        title(["Alias", "Core Command"]),
+        tableTitle(["Alias", "Core Command"]),
         ["gpl", "git pull"],
         ["gps", "git push"],
         ["gbl", "git branch list"],
@@ -36,9 +35,9 @@ new Command()
         ["gc", "git commit -m <message>"],
         ["gcs", "git commit summary"],
         ["gts", "git show <tag>"],
-        title(["Alias", "Core Command"]),
+        tableTitle(["Alias", "Core Command"]),
       ].map((it) => [key(it[0]), value(it[1])]),
-      tableConfig({ cols: [1, 3] }),
-    ),
+      tableConfig({ cols: [1, 3] })
+    )
   )
   .parseAsync()

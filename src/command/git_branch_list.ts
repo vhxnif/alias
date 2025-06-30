@@ -1,9 +1,24 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { branchList, branchNames, pageTable } from "../action/git-common-action"
-import { color } from "../utils/color-utils"
-import { tableDefaultConfig } from "../utils/table-utils"
-import { printErr } from "../utils/common-utils"
+import { table } from "table"
+import { branchList, type Branch } from "../action/branch-command"
+import { color, tableTitle } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
+import { default as page } from "../utils/page-prompt"
+import { tableDataPartation, tableDefaultConfig } from "../utils/table-utils"
+
+function branchParse(bs: Branch[]): string[][] {
+  return bs.map((it) => {
+    const { isCurrent, name } = it
+    return [isCurrent ? color.yellow(name) : color.blue(name)]
+  })
+}
+
+function tableParse(arr: string[][][]) {
+  return arr.map((it) => {
+    return table([tableTitle(["Branch Name"]), ...it], tableDefaultConfig)
+  })
+}
 
 new Command()
   .name("gbl")
@@ -11,26 +26,15 @@ new Command()
   .argument("[name]", "barnch name", "")
   .option("-a, --all", "list all", false)
   .action(async (name, { all }) => {
-    const execText = await branchList({ all, name })
-    const data = branchNames(execText, false).map((it) => [it])
-    const parse = (names: string[]) => {
-      return names.map((it) =>
-        it.startsWith("*")
-          ? color.yellow(it.replace("*", "").trim())
-          : color.blue(it.trim()),
-      )
-    }
-    await pageTable({
-      titleStr: ["Branch Name"],
-      data,
-      config: () => tableDefaultConfig,
-      rowParse: parse,
+    const data = await branchList({
+      name,
+      all,
     })
+      .then(branchParse)
+      .then(tableDataPartation)
+      .then(tableParse)
+
+    await page({ data })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

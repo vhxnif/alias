@@ -1,21 +1,15 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { stashAction } from "../action/git-common-action"
-import { printErr } from "../utils/common-utils"
+import { errParse } from "../utils/command-utils"
+import { stashAction, stashDrop } from "../action/stash-command"
 
 new Command()
   .name("gsd")
   .description("git stash drop")
   .action(async () => {
     await stashAction({
-      action: (s: string) => `git stash drop ${s}`,
-      isPrint: true,
+      command: stashDrop,
     })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

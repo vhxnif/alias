@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { branchAction } from "../action/git-common-action"
-import { printErr } from "../utils/common-utils"
+import { errParse } from "../utils/command-utils"
+import { branchAction, gitBranchRebase } from "../action/branch-command"
 
 new Command()
   .name("gbr")
@@ -10,13 +10,10 @@ new Command()
   .action(async (name) => {
     await branchAction({
       name,
-      action: (s) => `git rebase ${s}`,
+      command: async (it) => {
+        await gitBranchRebase(it)
+      },
     })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

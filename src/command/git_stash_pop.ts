@@ -1,18 +1,13 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { execPrint } from "../action/git-common-action"
-import { printErr } from "../utils/common-utils"
+import { errParse } from "../utils/command-utils"
+import { stashPop } from "../action/stash-command"
 
 new Command()
   .name("gsp")
   .description("git stash pop")
   .action(async () => {
-    await execPrint(`git stash pop`)
+    await stashPop()
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)

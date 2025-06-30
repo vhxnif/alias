@@ -1,18 +1,19 @@
 #!/usr/bin/env bun
 import type { ChalkInstance } from "chalk"
 import { Command } from "commander"
-import type { TableUserConfig } from "table"
-import { lines, pageTable } from "../action/git-common-action"
-import { color } from "../utils/color-utils"
+import { table, type TableUserConfig } from "table"
+import { color, tableTitle } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
+import { isEmpty, lines } from "../utils/common-utils"
+import { default as page } from "../utils/page-prompt"
 import { exec, terminal } from "../utils/platform-utils"
-import { tableDefaultConfig } from "../utils/table-utils"
-import { isEmpty, printErr } from "../utils/common-utils"
+import { tableDataPartation, tableDefaultConfig } from "../utils/table-utils"
 
 function logCommand(
   limit?: number,
   author?: string,
   from?: string,
-  to?: string,
+  to?: string
 ) {
   let command = `git log --oneline --format="%h│%an│%s│%ad│%D" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
@@ -43,7 +44,7 @@ function logTableConfig(tableData: string[][]) {
       arr[1].push(...authorAndTime.split("\n"))
       return arr
     },
-    [[], []] as string[][],
+    [[], []] as string[][]
   )
   const maxWidth = (strs: string[]) =>
     strs
@@ -126,17 +127,18 @@ new Command()
     if (isEmpty(logs)) {
       return
     }
-    await pageTable({
-      titleStr: ["Hash\nDate", "Author\nTime", "Message\nRef"],
-      data: logs.map((it) => it.split("│")),
-      config: logTableConfig,
-      rowParse: logParse,
-    })
+    const data = tableDataPartation(logs.map((it) => it.split("│"))).map(
+      (it) => {
+        return table(
+          [
+            tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]),
+            ...it.map(logParse),
+          ],
+          logTableConfig(it)
+        )
+      }
+    )
+    await page({ data })
   })
   .parseAsync()
-  .catch((e: unknown) => {
-    if (e instanceof Error) {
-      printErr(e.message)
-      return
-    }
-  })
+  .catch(errParse)
