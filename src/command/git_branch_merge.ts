@@ -6,8 +6,7 @@ import {
   gitBranchMerge,
   type Branch,
 } from "../action/branch-command"
-import { BranchHistory } from "../store/branch-history-store"
-import { rule } from "../utils/bus-utils"
+import { BranchHistory, rule } from "../store/branch-history-store"
 import { errParse } from "../utils/command-utils"
 
 const bs = await branchHistory()
