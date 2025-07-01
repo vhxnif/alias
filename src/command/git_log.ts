@@ -9,12 +9,25 @@ import { default as page } from "../utils/page-prompt"
 import { exec, terminal } from "../utils/platform-utils"
 import { tableDataPartation, tableDefaultConfig } from "../utils/table-utils"
 
-function logCommand(
-  limit?: number,
-  author?: string,
-  from?: string,
+type GitLogCommand = {
+  limit?: number
+  author?: string
+  from?: string
   to?: string
-) {
+}
+
+type GitLog = {
+  hash: string
+  date: string
+  author: string
+  time: string
+  message: string
+  ref: string[]
+}
+
+type GitLogKey = keyof GitLog
+
+function logCommand({ limit, author, from, to }: GitLogCommand) {
   let command = `git log --oneline --format="%h│%an│%s│%ad│%D" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
   if (limit) {
@@ -35,24 +48,54 @@ function logCommand(
   return command
 }
 
-function logTableConfig(tableData: string[][]) {
-  const data = tableData.reduce(
-    (arr, it) => {
-      const hashAndDate = it[0]
-      const authorAndTime = it[1]
-      arr[0].push(...hashAndDate.split("\n"))
-      arr[1].push(...authorAndTime.split("\n"))
-      return arr
-    },
-    [[], []] as string[][]
-  )
-  const maxWidth = (strs: string[]) =>
+async function gitLogs(cmd: GitLogCommand): Promise<GitLog[]> {
+  const mapToGitLog = (strs: string[]) =>
     strs
-      .map((it) => Bun.stringWidth(it))
-      .reduce((res, it) => (it > res ? it : res), 0)
+      .map((it) => it.split("│"))
+      .map((it) => {
+        const [hash, author, message, datetime, refStr] = it
+        const [date, time] = datetime.split(" ")
+        const ref = refStr ? refStr.split(",") : []
+        return {
+          hash,
+          author,
+          message,
+          date,
+          time,
+          ref,
+        } as GitLog
+      })
+  return await exec(logCommand(cmd)).then(lines).then(mapToGitLog)
+}
+
+function gitLogValueFilter(logs: GitLog[], columns: GitLogKey[]): string[] {
+  return logs.reduce((res, it) => {
+    Object.entries(it)
+      .filter((i) => columns.includes(i[0] as GitLogKey))
+      .forEach((i) => {
+        const v = i[1]
+        if (typeof v === "string") {
+          res.push(v)
+        } else {
+          res.push(...v)
+        }
+      })
+    return res
+  }, [] as string[])
+}
+
+function maxWidth(strs: string[]): number {
+  return strs
+    .map((it) => Bun.stringWidth(it))
+    .reduce((res, it) => (it > res ? it : res), 0)
+}
+
+function tableConfig(tableData: GitLog[]): TableUserConfig {
+  const logFilter = (columns: GitLogKey[]) =>
+    gitLogValueFilter(tableData, columns)
   const columnLimit = (terminal.column > 80 ? 80 : terminal.column) - 12
-  const col1 = maxWidth(data[0])
-  const col2 = maxWidth(data[1])
+  const col1 = maxWidth(logFilter(["hash", "date"]))
+  const col2 = maxWidth(logFilter(["author", "time"]))
   const col3 = columnLimit - col1 - col2
   return {
     ...tableDefaultConfig,
@@ -73,24 +116,17 @@ function logTableConfig(tableData: string[][]) {
   } as TableUserConfig
 }
 
-function logParse(str: string[]) {
-  const l = str.map((s) => s.trim())
-  const hash = color.yellow(l[0])
-  const author = color.blue(l[1])
-  const message = color.pink(l[2])
-  const dateTime = l[3].split(" ")
-  const date = color.mauve(dateTime[0])
-  const time = color.mauve(dateTime[1])
-  const ref = l[4]
-    .split(",")
-    .filter((it) => it)
-    .map(refParse)
-    .join("\n")
-  return [
-    `${hash}\n${date}`,
-    `${author}\n${time}`,
-    ref ? `${message}\n${ref}` : message,
-  ]
+function gitLogToTableData(logs: GitLog[]): string[][] {
+  return logs.map((l) => {
+    const { hash, author, message, time, date, ref } = l
+    const { yellow, blue, pink, mauve } = color
+    const refStr = ref.map(refParse).join("\n")
+    return [
+      `${yellow(hash)}\n${mauve(date)}`,
+      `${blue(author)}\n${mauve(time)}`,
+      !isEmpty(refStr) ? `${pink(message)}\n${refStr}` : pink(message),
+    ]
+  })
 }
 
 function refParse(name: string): string {
@@ -123,21 +159,17 @@ new Command()
   .action(async (option) => {
     const { limit, author, from, to } = option
     const logLimit = limit ?? 100
-    const logs = await exec(logCommand(logLimit, author, from, to)).then(lines)
+    const logs = await gitLogs({ limit: logLimit, author, from, to })
     if (isEmpty(logs)) {
-      return
+      throw Error(`Git Logs Missing.`)
     }
-    const data = tableDataPartation(logs.map((it) => it.split("│"))).map(
-      (it) => {
-        return table(
-          [
-            tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]),
-            ...it.map(logParse),
-          ],
-          logTableConfig(it)
-        )
-      }
-    )
+    const data = tableDataPartation(logs).map((it) => {
+      const s = gitLogToTableData(it)
+      return table(
+        [tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]), ...s],
+        tableConfig(it)
+      )
+    })
     await page({ data })
   })
   .parseAsync()
