@@ -10,6 +10,24 @@ export class BranchHistory {
   frequency!: number
 }
 
+export function rule(it: BranchHistory): number {
+  const { lastSwitchTime, frequency } = it
+  const lastHour = 36001000
+  const lastDay = 86400000
+  const lastWeek = 604800000
+  const duration = Date.now() - lastSwitchTime
+  if (duration <= lastHour) {
+    return frequency * 4
+  }
+  if (duration <= lastDay) {
+    return frequency * 2
+  }
+  if (duration <= lastWeek) {
+    return frequency / 2
+  }
+  return frequency / 4
+}
+
 export class BranchHistoryStore {
   private readonly db: Database
 
@@ -35,7 +53,7 @@ export class BranchHistoryStore {
   addOrUpdate(name: string) {
     const r = this.db
       .query(
-        `SELECT name, last_switch_time as lastSwitchTime, frequency FROM branch_history WHERE name = ?`,
+        `SELECT name, last_switch_time as lastSwitchTime, frequency FROM branch_history WHERE name = ?`
       )
       .as(BranchHistory)
       .get(name)
@@ -47,7 +65,7 @@ export class BranchHistoryStore {
     // insert
     this.db
       .prepare(
-        `INSERT INTO branch_history (name, last_switch_time, frequency) VALUES (?, ?, ?)`,
+        `INSERT INTO branch_history (name, last_switch_time, frequency) VALUES (?, ?, ?)`
       )
       .run(name, Date.now(), 1)
   }
@@ -56,7 +74,7 @@ export class BranchHistoryStore {
     // update
     this.db
       .prepare(
-        `UPDATE branch_history set last_switch_time = ?, frequency = ? WHERE name = ?`,
+        `UPDATE branch_history set last_switch_time = ?, frequency = ? WHERE name = ?`
       )
       .run(Date.now(), frequency + 1, name)
     return
@@ -69,7 +87,7 @@ export class BranchHistoryStore {
   query(name: string) {
     return this.db
       .query(
-        `SELECT name, last_switch_time as lastSwitchTime, frequency FROM branch_history WHERE name like ?`,
+        `SELECT name, last_switch_time as lastSwitchTime, frequency FROM branch_history WHERE name like ?`
       )
       .as(BranchHistory)
       .all(`%${name}%`)

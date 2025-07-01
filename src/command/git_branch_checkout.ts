@@ -7,9 +7,9 @@ import {
   gitSwitch,
   type Branch,
 } from "../action/branch-command"
-import { rule } from "../utils/bus-utils"
 import { errParse } from "../utils/command-utils"
 import { tryExec } from "../utils/platform-utils"
+import { rule } from "../store/branch-history-store"
 
 const bs = await branchHistory()
 
