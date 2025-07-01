@@ -50,11 +50,7 @@ const tableConfig = ({
 const printTable = (data: unknown[][], userConfig?: TableUserConfig) =>
   console.log(table(data, userConfig))
 
-
-function tableDataPartation(
-  data: string[][],
-  pageSize: number = 5
-): string[][][] {
+function tableDataPartation<T>(data: T[], pageSize: number = 5): T[][] {
   return data.reduce((result, item, index) => {
     const chunkIndex = Math.floor(index / pageSize)
     if (!result[chunkIndex]) {
@@ -62,7 +58,7 @@ function tableDataPartation(
     }
     result[chunkIndex].push(item)
     return result
-  }, [] as string[][][])
+  }, [] as T[][])
 }
 
 export { tableConfig, printTable, tableDataPartation, tableDefaultConfig }
