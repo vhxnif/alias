@@ -159,7 +159,7 @@ function rowCard(log: GitLog): string {
   const authorStr = blue.bold(author)
   const humanDatetimeStr = green.bold(humanDate)
   const datetiemStr = mauve.bold(datetime)
-  const title = `${authorStr},${humanDatetimeStr} (${datetiemStr})`
+  const title = `${authorStr}, ${humanDatetimeStr} (${datetiemStr})`
   return table(
     [[`${pink(message)}\n\n${teal(body)}`], [green(commitHash)]],
     cardTableCofnig(title)
