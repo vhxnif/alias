@@ -1,6 +1,6 @@
 import path from "path"
 import os from "node:os"
-import { printErr } from "./common-utils"
+import { printCmdLog, printErr } from "./common-utils"
 import { $, ShellError } from "bun"
 import { accessSync, constants, mkdirSync } from "node:fs"
 
@@ -28,11 +28,20 @@ async function editor(content: string, f: (tmp: string) => Promise<void>) {
 
 async function exec(command: string): Promise<string> {
   try {
-    return await $`${{ raw: command }}`.text()
+    return (await $`${{ raw: command }}`.text()).trimEnd()
   } catch (err: unknown) {
     printErr((err as ShellError).stderr.toString())
     process.exit()
   }
+}
+
+async function execPrint(command: string, format?: (s: string) => string) {
+  const cl = await exec(command)
+  if (format) {
+    console.log(format(cl))
+    return
+  }
+  printCmdLog(cl)
 }
 
 async function tryExec(command: string): Promise<string> {
@@ -75,4 +84,4 @@ function configPath(): string | undefined {
   }
 }
 
-export { exec, tryExec, editor, configPath, terminal, platform }
+export { exec, tryExec, execPrint, editor, configPath, terminal, platform }

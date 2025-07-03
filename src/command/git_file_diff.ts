@@ -1,10 +1,13 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
+import { errParse } from "../utils/command-utils"
 import {
-  diffFormat,
+  fileChanged,
+  gitFileDiff,
   singleFileAction,
-  statusShortLog,
-} from "../action/git-common-action"
+  type File,
+} from "../action/file-command"
+import { diffFormat } from "../utils/diff-utils"
 
 new Command()
   .name("gfc")
@@ -12,10 +15,12 @@ new Command()
   .action(async () => {
     await singleFileAction({
       message: "Select Changed File:",
-      command: "git diff",
-      logs: statusShortLog,
-      isPrint: true,
-      format: diffFormat,
+      fileFilter: fileChanged,
+      command: async (f: File) => {
+        const res = await gitFileDiff(f)
+        console.log(diffFormat(res))
+      },
     })
   })
   .parseAsync()
+  .catch(errParse)

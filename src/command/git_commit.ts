@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import ora from "ora"
-import { execPrint, stagedFile } from "../action/git-common-action"
+import { fileStaged, fileStatus } from "../action/file-command"
+import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
-import type { ILLMClient } from "../llm/llm-types"
 import { color } from "../utils/color-utils"
 import { isEmpty, printErr } from "../utils/common-utils"
-import { editor, exec } from "../utils/platform-utils"
+import { editor, exec, execPrint } from "../utils/platform-utils"
 import { gitCommitMessage } from "../utils/prompt"
 
 const client: ILLMClient =
@@ -36,7 +36,7 @@ new Command()
   .option("-m, --message <message>", "commit message not use ai summary")
   .action(async (options) => {
     const { message } = options
-    const stageFile = await stagedFile()
+    const stageFile = await fileStatus().then((it) => it.filter(fileStaged))
     if (isEmpty(stageFile)) {
       printErr("No Staged Changes To Commit.")
       return
@@ -48,3 +48,9 @@ new Command()
     await commitWithMessage()
   })
   .parseAsync()
+  .catch((e: unknown) => {
+    if (e instanceof Error) {
+      printErr(e.message)
+      return
+    }
+  })

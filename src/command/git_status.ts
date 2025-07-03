@@ -1,15 +1,16 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { statusShortLog, title } from "../action/git-common-action"
-import { color } from "../utils/color-utils"
-import { printTable, tableConfig } from "../utils/table-utils"
+import { fileStatus } from "../action/file-command"
+import { color, tableTitle } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
 import { isEmpty } from "../utils/common-utils"
+import { printTable, tableConfig } from "../utils/table-utils"
 
 new Command()
   .name("gs")
   .description("git status")
   .action(async () => {
-    const logs = await statusShortLog()
+    const logs = await fileStatus()
     if (isEmpty(logs)) {
       return
     }
@@ -19,8 +20,9 @@ new Command()
       color.blue(it.filePath),
     ])
     printTable(
-      [title(["Stash", "Change", "File"]), ...data],
+      [tableTitle(["Stage", "Work", "File"]), ...data],
       tableConfig({ cols: [1, 1, 4] })
     )
   })
   .parseAsync()
+  .catch(errParse)

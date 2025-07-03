@@ -1,20 +1,26 @@
 #!/usr/bin/env bun
-import type { ChalkInstance } from "chalk"
 import { Command } from "commander"
-import type { TableUserConfig } from "table"
-import { lines, pageTable } from "../action/git-common-action"
-import { color } from "../utils/color-utils"
-import { exec, terminal } from "../utils/platform-utils"
-import { tableDefaultConfig } from "../utils/table-utils"
-import { isEmpty } from "../utils/common-utils"
+import { errParse } from "../utils/command-utils"
+import { isEmpty, lines } from "../utils/common-utils"
+import type { GitLog } from "../utils/git-log-prompt"
+import { default as page } from "../utils/git-log-prompt"
+import { exec } from "../utils/platform-utils"
 
-function logCommand(
-  limit?: number,
-  author?: string,
-  from?: string,
+type GitLogCommand = {
+  limit?: number
+  author?: string
+  from?: string
   to?: string
-) {
-  let command = `git log --oneline --format="%h│%an│%s│%ad│%D" --date=format:"%Y-%m-%d %H:%M:%S"`
+}
+
+const logItemJoin = "│"
+const logItemEnd = "┼"
+
+function logCommand({ limit, author, from, to }: GitLogCommand) {
+  const format: string[] = ["%h", "%an", "%s", "%ad", "%D", "%b", "%H", "%cr"]
+  let command = `git log --oneline --format="${
+    format.join(logItemJoin) + logItemEnd
+  }" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
   if (limit) {
     command = `${command} -n ${limit}`
@@ -34,82 +40,37 @@ function logCommand(
   return command
 }
 
-function logTableConfig(tableData: string[][]) {
-  const data = tableData.reduce(
-    (arr, it) => {
-      const hashAndDate = it[0]
-      const authorAndTime = it[1]
-      arr[0].push(...hashAndDate.split("\n"))
-      arr[1].push(...authorAndTime.split("\n"))
-      return arr
-    },
-    [[], []] as string[][]
-  )
-  const maxWidth = (strs: string[]) =>
+async function gitLogs(cmd: GitLogCommand): Promise<GitLog[]> {
+  const mapToGitLog = (strs: string[]) =>
     strs
-      .map((it) => Bun.stringWidth(it))
-      .reduce((res, it) => (it > res ? it : res), 0)
-  const columnLimit = (terminal.column > 80 ? 80 : terminal.column) - 12
-  const col1 = maxWidth(data[0])
-  const col2 = maxWidth(data[1])
-  const col3 = columnLimit - col1 - col2
-  return {
-    ...tableDefaultConfig,
-    columns: [
-      {
-        alignment: "justify",
-        width: col1,
-      },
-      {
-        alignment: "justify",
-        width: col2,
-      },
-      {
-        alignment: "justify",
-        width: col3,
-      },
-    ],
-  } as TableUserConfig
-}
-
-function logParse(str: string[]) {
-  const l = str.map((s) => s.trim())
-  const hash = color.yellow(l[0])
-  const author = color.blue(l[1])
-  const message = color.pink(l[2])
-  const dateTime = l[3].split(" ")
-  const date = color.mauve(dateTime[0])
-  const time = color.mauve(dateTime[1])
-  const ref = l[4]
-    .split(",")
-    .filter((it) => it)
-    .map(refParse)
-    .join("\n")
-  return [
-    `${hash}\n${date}`,
-    `${author}\n${time}`,
-    ref ? `${message}\n${ref}` : message,
-  ]
-}
-
-function refParse(name: string): string {
-  const origin = "\u21c4"
-  const head = "\u27a4"
-  const local = "\u270e"
-  const tag = "\u2691"
-  const match = (str: string) => name.trim().startsWith(str)
-  const iconShow = (icon: string, c: ChalkInstance) =>
-    c(`${icon} ${name.trim()}`)
-  if (match("origin")) {
-    return iconShow(origin, color.sky)
-  }
-  if (match("HEAD ->")) {
-    return iconShow(head, color.green)
-  }
-  if (match("tag:")) {
-    return iconShow(tag, color.red)
-  }
-  return iconShow(local, color.peach)
+      .map((it) => it.split(logItemJoin))
+      .map((it) => {
+        const [
+          hash,
+          author,
+          message,
+          datetime,
+          refStr,
+          body,
+          commitHash,
+          humanDate,
+        ] = it
+        const [date, time] = datetime.split(" ")
+        const ref = refStr ? refStr.split(",") : []
+        return {
+          hash,
+          author,
+          message,
+          date,
+          time,
+          ref,
+          body,
+          commitHash,
+          humanDate,
+        } as GitLog
+      })
+  const sp = (str: string) => lines(str, logItemEnd)
+  return await exec(logCommand(cmd)).then(sp).then(mapToGitLog)
 }
 
 new Command()
@@ -122,15 +83,11 @@ new Command()
   .action(async (option) => {
     const { limit, author, from, to } = option
     const logLimit = limit ?? 100
-    const logs = await exec(logCommand(logLimit, author, from, to)).then(lines)
+    const logs = await gitLogs({ limit: logLimit, author, from, to })
     if (isEmpty(logs)) {
-      return
+      throw Error(`Git Logs Missing.`)
     }
-    await pageTable({
-      titleStr: ["Hash\nDate", "Author\nTime", "Message\nRef"],
-      data: logs.map((it) => it.split("│")),
-      config: logTableConfig,
-      rowParse: logParse,
-    })
+    await page({ data: logs })
   })
   .parseAsync()
+  .catch(errParse)

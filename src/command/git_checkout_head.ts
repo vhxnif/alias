@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { changedFile, singleFileAction } from "../action/git-common-action"
+import { errParse } from "../utils/command-utils"
+import {
+  fileChanged,
+  gitFileCheckout,
+  singleFileAction,
+} from "../action/file-command"
 
 new Command()
   .name("gfr")
@@ -8,8 +13,11 @@ new Command()
   .action(async () => {
     await singleFileAction({
       message: "Select Rollback Files:",
-      command: "git checkout HEAD --",
-      logs: changedFile,
+      command: async (it) => {
+        await gitFileCheckout(it)
+      },
+      fileFilter: fileChanged,
     })
   })
   .parseAsync()
+  .catch(errParse)

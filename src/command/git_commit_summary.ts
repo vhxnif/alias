@@ -5,6 +5,7 @@ import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
 import { color } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
 import { exec } from "../utils/platform-utils"
 import { gitLogSummary } from "../utils/prompt"
 
@@ -45,3 +46,4 @@ new Command()
     })
   })
   .parseAsync()
+  .catch(errParse)

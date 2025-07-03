@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { execPrint } from "../action/git-common-action"
+import { stashAdd } from "../action/stash-command"
+import { errParse } from "../utils/command-utils"
 
 new Command()
   .name("gsa")
   .argument("<name>")
   .description("git stash push -m")
   .action(async (name) => {
-    await execPrint(`git stash push -m ${name}`)
+    await stashAdd(name)
   })
   .parseAsync()
+  .catch(errParse)

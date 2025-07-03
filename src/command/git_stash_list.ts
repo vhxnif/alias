@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { stashInfo, title } from "../action/git-common-action"
-import { color } from "../utils/color-utils"
+import { stashList } from "../action/stash-command"
+import { color, tableTitle } from "../utils/color-utils"
+import { errParse } from "../utils/command-utils"
 import { isEmpty, printErr } from "../utils/common-utils"
 import { printTable, tableConfig } from "../utils/table-utils"
 
@@ -9,16 +10,21 @@ new Command()
   .name("gsl")
   .description("git stash list")
   .action(async () => {
-    const stashInfos = await stashInfo()
+    const stashInfos = await stashList()
     if (isEmpty(stashInfos)) {
       printErr("Stash Is Empty.")
       return
     }
-    const ds = [color.yellow, color.blue, color.pink, color.mauve]
-    const data = stashInfos.map((row) => row.map((it, idx) => ds[idx]?.(it)))
+    const data = stashInfos.map((it) => [
+      color.yellow(it.reflog),
+      color.blue(it.reflogSubject),
+      color.pink(it.anthor),
+      color.mauve(it.createTime),
+    ])
     printTable(
-      [title(["StashNo", "Message", "Author", "Date"]), ...data],
+      [tableTitle(["StashNo", "Message", "Author", "Date"]), ...data],
       tableConfig({ cols: [1, 3, 1, 1] })
     )
   })
   .parseAsync()
+  .catch(errParse)

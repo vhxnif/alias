@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
-import { Command } from "commander"
-import { isEmpty } from "../utils/common-utils"
 import { select } from "@inquirer/prompts"
+import { Command } from "commander"
+import { errParse } from "../utils/command-utils"
+import { isEmpty, lines } from "../utils/common-utils"
 import { exec } from "../utils/platform-utils"
-import { lines } from "../action/git-common-action"
 
 function logCommand(
   limit?: number,
   author?: string,
   from?: string,
-  to?: string,
+  to?: string
 ) {
   let command = `git log --oneline --format="%h│%an│%s" --date=format:"%Y-%m-%d %H:%M:%S"`
   const initCommand = command
@@ -77,17 +77,16 @@ new Command()
     }).then(async (answer) => {
       const beforeCommit = diff(answer)
       if (beforeCommit) {
-        const text = await exec(`git diff ${beforeCommit} ${answer}`)
-        console.log(text)
+        console.log(await exec(`git diff ${beforeCommit} ${answer}`))
         return
       }
       await select({
         message: "Select Commit:",
         choices,
       }).then(async (bef) => {
-        const text = await exec(`git diff ${bef} ${answer}`)
-        console.log(text)
+        console.log(await exec(`git diff ${bef} ${answer}`))
       })
     })
   })
   .parseAsync()
+  .catch(errParse)

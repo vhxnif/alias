@@ -1,49 +1,52 @@
 #!/usr/bin/env bun
 import type { ShellError } from "bun"
-import Database from "bun:sqlite"
 import { Command } from "commander"
-import { branchAction, branchHisDataPath } from "../action/git-common-action"
-import { BranchHistoryStore } from "../store/branch-history-store"
+import {
+  branchAction,
+  branchHistory,
+  gitSwitch,
+  type Branch,
+} from "../action/branch-command"
+import { errParse } from "../utils/command-utils"
 import { tryExec } from "../utils/platform-utils"
-import { rule } from "../utils/bus-utils"
+import { rule } from "../store/branch-history-store"
 
-const path = await branchHisDataPath()
-const branchHistory = new BranchHistoryStore(new Database(path))
+const bs = await branchHistory()
 
 new Command()
   .name("gbc")
   .description("git switch <name>")
   .argument("[name]", "barnch name", "")
   .option("-f, --force")
-  .action(async (name, option) => {
-    if (name && !option.force) {
-      const branch = branchHistory
-        .query(name)
-        .sort((a, b) => rule(b) - rule(a))[0]
+  .action(async (name, { force }) => {
+    if (name && !force) {
+      const branch = bs.query(name).sort((a, b) => rule(b) - rule(a))[0]
       if (branch) {
+        const { name, frequency } = branch
         try {
-          await tryExec(`git switch ${branch.name}`)
-          branchHistory.update(branch.name, branch.frequency)
+          await tryExec(`git switch ${name}`)
+          bs.update(name, frequency)
           return
         } catch (err: unknown) {
           const msg = (err as ShellError).stderr.toString()
           if (msg.startsWith("fatal: invalid reference:")) {
-            branchHistory.delete(branch.name)
+            bs.delete(name)
           }
         }
       }
     }
     await branchAction({
-      action: (s) => `git switch ${s}`,
-      nameFilter: name,
-      beforeExec: (str) => {
-        branchHistory.addOrUpdate(str)
+      name,
+      command: async (branch: Branch) => {
+        bs.addOrUpdate(branch.name)
+        await gitSwitch({ branch })
       },
     })
   })
   .parseAsync()
+  .catch(errParse)
   .finally(() => {
-    if (branchHistory) {
-      branchHistory.close()
+    if (bs) {
+      bs.close()
     }
   })

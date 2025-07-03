@@ -1,11 +1,22 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { batchFileAction, changedFile } from "../action/git-common-action"
+import {
+  batchFileAction,
+  fileChanged,
+  gitFileAdd,
+} from "../action/file-command"
+import { errParse } from "../utils/command-utils"
 
 new Command()
   .name("gfa")
   .description("git add")
   .action(async () => {
-    await batchFileAction("Select Add Files:", `git add -- `, changedFile)
+    await batchFileAction({
+      fileFilter: fileChanged,
+      command: async (it) => {
+        await gitFileAdd(it)
+      },
+    })
   })
   .parseAsync()
+  .catch(errParse)

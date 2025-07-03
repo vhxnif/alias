@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { branchAction, branchHisDataPath } from "../action/git-common-action"
-import { BranchHistoryStore } from "../store/branch-history-store"
-import Database from "bun:sqlite"
+import { errParse } from "../utils/command-utils"
+import {
+  branchAction,
+  branchHistory,
+  gitBranchDelte,
+  type Branch,
+} from "../action/branch-command"
 
-const path = await branchHisDataPath()
-const branchHistory = new BranchHistoryStore(new Database(path))
+const bs = await branchHistory()
 
 new Command()
   .name("gbd")
@@ -13,14 +16,17 @@ new Command()
   .argument("[name]", "barnch name", "")
   .action(async (name) => {
     await branchAction({
-      action: (s) => `git branch -D ${s}`,
-      nameFilter: name,
-      beforeExec: (s) => branchHistory.delete(s),
+      name,
+      command: async (branch: Branch) => {
+        bs.delete(branch.name)
+        await gitBranchDelte(branch)
+      },
     })
   })
   .parseAsync()
+  .catch(errParse)
   .finally(() => {
-    if (branchHistory) {
-      branchHistory.close()
+    if (bs) {
+      bs.close()
     }
   })

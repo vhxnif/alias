@@ -32,4 +32,12 @@ function isEmpty<T>(param: string | T[] | undefined | null) {
   return arr.length <= 0
 }
 
-export { printCmdLog, printErr, isEmpty }
+function lines(str: string, spliter: string = "\n"): string[] {
+  return str
+    .trim()
+    .split(spliter)
+    .map((it) => it.trim())
+    .filter((it) => it)
+}
+
+export { printCmdLog, printErr, isEmpty, lines }

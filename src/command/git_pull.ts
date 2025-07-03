@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { execPrint } from "../action/git-common-action"
+import { errParse } from "../utils/command-utils"
+import { execPrint } from "../utils/platform-utils"
 
 new Command()
   .name("gpl")
@@ -9,3 +10,4 @@ new Command()
     await execPrint("git pull")
   })
   .parseAsync()
+  .catch(errParse)
