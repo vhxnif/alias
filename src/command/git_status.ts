@@ -20,7 +20,7 @@ new Command()
       color.blue(it.filePath),
     ])
     printTable(
-      [tableTitle(["Stash", "Change", "File"]), ...data],
+      [tableTitle(["Stage", "Work", "File"]), ...data],
       tableConfig({ cols: [1, 1, 4] })
     )
   })
