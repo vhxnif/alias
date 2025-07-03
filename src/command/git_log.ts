@@ -17,7 +17,7 @@ const logItemJoin = "│"
 const logItemEnd = "┼"
 
 function logCommand({ limit, author, from, to }: GitLogCommand) {
-  const format: string[] = ["%h", "%an", "%s", "%ad", "%D", "%b", "%H"]
+  const format: string[] = ["%h", "%an", "%s", "%ad", "%D", "%b", "%H", "%cr"]
   let command = `git log --oneline --format="${
     format.join(logItemJoin) + logItemEnd
   }" --date=format:"%Y-%m-%d %H:%M:%S"`
@@ -45,7 +45,16 @@ async function gitLogs(cmd: GitLogCommand): Promise<GitLog[]> {
     strs
       .map((it) => it.split(logItemJoin))
       .map((it) => {
-        const [hash, author, message, datetime, refStr, body, commitHash] = it
+        const [
+          hash,
+          author,
+          message,
+          datetime,
+          refStr,
+          body,
+          commitHash,
+          humanDate,
+        ] = it
         const [date, time] = datetime.split(" ")
         const ref = refStr ? refStr.split(",") : []
         return {
@@ -57,6 +66,7 @@ async function gitLogs(cmd: GitLogCommand): Promise<GitLog[]> {
           ref,
           body,
           commitHash,
+          humanDate,
         } as GitLog
       })
   const sp = (str: string) => lines(str, logItemEnd)
