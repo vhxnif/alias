@@ -2,7 +2,7 @@ import { createPrompt, useKeypress, useState } from "@inquirer/core"
 import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
-import { color, tableTitle } from "./color-utils"
+import { color, colorHex, tableTitle } from "./color-utils"
 import { isEmpty } from "./common-utils"
 import { terminal } from "./platform-utils"
 import { tableDefaultConfig } from "./table-utils"
@@ -83,12 +83,14 @@ function gitLogToTableData(
 ): string[][] {
   return logs.map((l, idx) => {
     const { hash, author, message, time, date, ref } = l
-    const { green, yellow, blue, pink, mauve, surface2 } = color
+    const { yellow, blue, pink, mauve, surface2 } = color
     const refStr = ref.map(refParse).join("\n")
     const selectedMark = () => {
       if (selectedIdx === idx) {
         return `${
-          yanked ? surface2.bgGreen(hash) : `[${green(hash)}]`
+          yanked
+            ? surface2.bold.bgHex(colorHex.sky)(hash)
+            : surface2.bold.bgHex(colorHex.yellow)(hash)
         }\n${mauve(date)}`
       }
       return `${yellow(hash)}\n${mauve(date)}`
@@ -236,17 +238,15 @@ function statusPrompt({
   rowIdx: number
 }): string {
   const modeColor: Record<Mode, ChalkInstance> = {
-    PAGE: color.surface2.bold.bgMagenta,
-    ROW: color.surface2.bold.bgYellow,
+    PAGE: color.surface2.bold.bgHex(colorHex.green),
+    ROW: color.surface2.bold.bgHex(colorHex.yellow),
   }
   const modeStatus = `${modeColor[mode](` ${mode} `)}`
-  const pageStatus = key("Page", `${pageIdx + 1}/${data.length}`)
-  const rowStatus = key("Row", `${rowIdx + 1}/${data[pageIdx].length}`)
-  const def = `${modeStatus} ${pageStatus}`
+  const help = `(Press${key("", "h")} to view the key mapping.)`
   if (mode === "PAGE") {
-    return def
+    return `${key(modeStatus, `${pageIdx + 1}/${data.length}`)} ${help}`
   }
-  return `${def} ${rowStatus}`
+  return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
 }
 
 export default createPrompt<number, GitLogConfig>((config, done) => {
@@ -258,6 +258,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     pageTable({ logs: data[pageIdx], selectedIdx: rowIdx })
   )
   const [cardShow, setCardShow] = useState<boolean>(false)
+  const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
       pageTable({
@@ -329,6 +330,8 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     const isKey = (str: string) => key.name === str
     if (isKey("space")) {
       changeMode(mode)
+    } else if (isKey("h")) {
+      setKeyBar(!keyBar)
     } else if (isKey("j")) {
       next(pageIdx, rowIdx)
     } else if (isKey("k")) {
@@ -348,5 +351,8 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     rowIdx,
     data,
   })
-  return `${show}${normalKeyPrompt()}\n${rowKeyPrompt()}\n${status}`
+  if (keyBar) {
+    return `${show}${normalKeyPrompt()}\n${rowKeyPrompt()}\n${status}`
+  }
+  return `${show}${status}`
 })
