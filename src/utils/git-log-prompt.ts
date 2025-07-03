@@ -1,11 +1,11 @@
 import { createPrompt, useKeypress, useState } from "@inquirer/core"
 import type { ChalkInstance } from "chalk"
+import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, tableTitle } from "./color-utils"
-import { isEmpty, timeAgo } from "./common-utils"
+import { isEmpty } from "./common-utils"
 import { terminal } from "./platform-utils"
 import { tableDefaultConfig } from "./table-utils"
-import clipboard from "clipboardy"
 
 export type GitLog = {
   hash: string
@@ -16,6 +16,7 @@ export type GitLog = {
   ref: string[]
   body: string
   commitHash: string
+  humanDate: string
 }
 
 export type GitLogKey = keyof GitLog
@@ -102,23 +103,21 @@ function gitLogToTableData(
 }
 
 function refParse(name: string): string {
-  const origin = "\u21c4"
-  const head = "\u27a4"
-  const local = "\u270e"
+  const branch = "\u21c4"
   const tag = "\u2691"
   const match = (str: string) => name.trim().startsWith(str)
   const iconShow = (icon: string, c: ChalkInstance) =>
     c(`${icon} ${name.trim()}`)
   if (match("origin")) {
-    return iconShow(origin, color.sky)
+    return iconShow(branch, color.sky)
   }
   if (match("HEAD ->")) {
-    return iconShow(head, color.green)
+    return iconShow(branch, color.green)
   }
   if (match("tag:")) {
     return iconShow(tag, color.red)
   }
-  return iconShow(local, color.peach)
+  return iconShow(branch, color.peach)
 }
 
 type PageTableArg = {
@@ -154,17 +153,17 @@ function cardTableCofnig(title: string) {
 }
 
 function rowCard(log: GitLog): string {
-  const { author, time, date, message, body } = log
+  const { author, time, date, message, body, humanDate, commitHash } = log
   const { green, blue, pink, mauve, teal } = color
   const datetime = `${date} ${time}`
-  const humanDatetime = timeAgo(datetime)
-
-  const title = [
-    blue.bold(author),
-    `${green.bold(humanDatetime)} ${mauve.bold(datetime)}`,
-  ].join(" ")
-
-  return table([[`${pink(message)}\n\n${teal(body)}`]], cardTableCofnig(title))
+  const authorStr = blue.bold(author)
+  const humanDatetimeStr = green.bold(humanDate)
+  const datetiemStr = mauve.bold(datetime)
+  const title = `${authorStr},${humanDatetimeStr} (${datetiemStr})`
+  return table(
+    [[`${pink(message)}\n\n${teal(body)}`], [green(commitHash)]],
+    cardTableCofnig(title)
+  )
 }
 
 function pages({ data, pageSize = 5 }: GitLogConfig): GitLog[][] {
