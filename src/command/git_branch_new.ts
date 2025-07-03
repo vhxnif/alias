@@ -24,7 +24,9 @@ new Command()
       })
       return
     }
-    printCmdLog(await gitSwitch({ branch: name }))
+    printCmdLog(
+      await gitSwitch({ branch: { name, isCurrent: true }, args: ["-c"] })
+    )
   })
   .parseAsync()
   .catch(errParse)
