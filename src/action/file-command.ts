@@ -73,7 +73,7 @@ function fileChanged({ workStatus }: File): boolean {
 }
 
 function fileStaged({ stageStatus }: File): boolean {
-  return ![" ", "!"].includes(stageStatus)
+  return ![" ", "!", "?"].includes(stageStatus)
 }
 
 // ---- git add ---- //
@@ -98,7 +98,9 @@ async function gitFileDiff({ filePath }: File): Promise<string> {
 // --- git restore --staged <file> ---- //
 
 async function gitFileRestore(files: File[]): Promise<string> {
-  return await exec(`git restore --staged ${files.join(" ")}`)
+  return await exec(
+    `git restore --staged ${files.map((it) => it.filePath).join(" ")}`
+  )
 }
 
 // ---- interation ---- //
