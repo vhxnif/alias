@@ -39,7 +39,8 @@ new Command()
       name,
       command: async (branch: Branch) => {
         bs.addOrUpdate(branch.name)
-        await gitSwitch({ branch })
+        const log = await gitSwitch({ branch })
+        console.log(log)
       },
     })
   })

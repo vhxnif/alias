@@ -5,21 +5,19 @@ import { format } from "../utils/command-log-format"
 import { errParse } from "../utils/command-utils"
 import { exec } from "../utils/platform-utils"
 
-const { green, yellow } = color
-
 function print(log: string): void {
-  if ("Already up to date." === log) {
-    console.log(green(log))
-    return
-  }
   const lines = log.split("\n")
+  let foramtMatched = false
   format["git-pull"].forEach((it) => {
     if (it.match(lines)) {
       it.print(lines)
+      foramtMatched = true
       return
     }
   })
-  console.log(yellow(log))
+  if (!foramtMatched) {
+    console.log(color.yellow(log))
+  }
 }
 
 new Command()
