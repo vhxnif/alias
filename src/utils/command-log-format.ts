@@ -34,35 +34,62 @@ function isUpdateFastForward(strs: string[]): boolean {
 }
 
 function printUpdateFastForwardLog(strs: string[]): void {
-  const arr: string[] = []
+  const [fileList, summaryList, deatilList] = _fastForwardBodySplit(strs)
+  const str = (
+    [
+      ..._fastForwardTitle(strs),
+      ..._fastForwardBodyFileFormat(fileList),
+      ..._fastForwardBodyFileSummaryFormat(summaryList),
+      ..._fastForwardBodyFileDetailFormat(deatilList),
+    ] as string[]
+  ).join("\n")
+  return console.log(str)
+}
+
+/**
+ * Updating 3cdf34546..889f31388
+ * Fast-forward
+ * @param strs
+ */
+function _fastForwardTitle(strs: string[]): string[] {
   const [update, hashMove] = strs[0].split(" ")
   const [oldHash, newHash] = hashMove.split("..")
-  arr.push(`${blue.bold(update)} ${teal(oldHash)}..${sky(newHash)}`)
-  arr.push(yellow(strs[1]))
+  return [
+    `${blue.bold(update)} ${teal(oldHash)}..${sky(newHash)}`,
+    yellow(strs[1]),
+  ]
+}
+
+function _fastForwardBodySplit(strs: string[]) {
   let notFileList = false
-  const [fileList, summaryList] = strs.reduce((arr, it, idx) => {
+  return strs.reduce((arr, it, idx) => {
     if (idx < 2) {
       return arr
     }
-    if (it.startsWith(" ...") && !notFileList) {
-      const fl: string[] | undefined = arr[0]
-      if (!fl) {
+    const tk = (idx: number) => {
+      const item: string[] = arr[idx]
+      if (!item) {
         arr.push([it])
-        return arr
+        return
       }
-      fl.push(it)
+      item.push(it)
+    }
+    if (!notFileList && !it.includes("files changed,")) {
+      tk(0)
       return arr
     }
-    notFileList = true
-    const summary = arr[1]
-    if (!summary) {
-      arr.push([it])
+    if (it.includes("files changed,")) {
+      notFileList = true
+      tk(1)
       return arr
     }
-    summary.push(it)
+    tk(2)
     return arr
   }, [] as string[][])
-  const fls = fileList.map((it) => {
+}
+
+function _fastForwardBodyFileFormat(fileList: string[]): string[] {
+  return fileList.map((it) => {
     const [file, change] = it.split("|")
     const spIdx = change.lastIndexOf(" ")
     return `${mauve(file)}|${blue(change.substring(0, spIdx))} ${change
@@ -70,7 +97,9 @@ function printUpdateFastForwardLog(strs: string[]): void {
       .replaceAll("+", green("+"))
       .replaceAll("-", red("-"))}`
   })
-  arr.push(...fls)
+}
+
+function _fastForwardBodyFileSummaryFormat(summaryList: string[]): string[] {
   const summaryStr = summaryList[0]
     .split(", ")
     .map((it) => {
@@ -88,36 +117,70 @@ function printUpdateFastForwardLog(strs: string[]): void {
       return `${blue(l.substring(0, sp))}${draw(l.substring(sp))}`
     })
     .join(", ")
-  arr.push(` ${summaryStr}`)
+  return [` ${summaryStr}`]
+}
 
-  const fileDetails = summaryList.reduce((arr, it, idx) => {
-    if (idx < 1) {
-      return arr
+function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
+  const typeFormat = (str: string) => {
+    switch (str) {
+      case "create":
+        return green
+      case "delete":
+        return red
+      default:
+        return sky
     }
-    // create mode 100644 clinflash-epro/epro/src/main/java/com/jxepro/clinflash/common/ThreadPoolMonitor.java
-    const parts = it.split(" ")
-    const [ept, type, mode, filetype, file] = parts
-    const typeFormat = (str: string) => {
-      switch (str) {
-        case "create":
-          return green(str)
-        case "delete":
-          return red(str)
-        default:
-          return blue(str)
+  }
+  return deatilList.reduce((arr, it) => {
+    const renamePath = () => {
+      // rename src/main/resources/icons/{grayStarOff.svg => starOffGray.svg}
+      const path = it.substring(8)
+      const regex = /\{([^{}]*)\}/g
+      const mts = path.match(regex)?.[0]
+      if (!mts) {
+        return blue(path)
       }
+      const [oldName, newName] = mts.split(" => ")
+      const ftPath = path
+        .split(mts)
+        .map((it) => blue(it))
+        .join(`${red(oldName)} => ${green(newName)}`)
+      return ` ${blue("rename")} ${ftPath}`
     }
-    arr.push(
-      [ept, typeFormat(type), mode, sky(filetype), mauve(file)].join(" ")
-    )
+    if (it.startsWith(" rename")) {
+      arr.push(renamePath())
+    } else {
+      // create mode 100644 clinflash-epro/epro/src/main/java/com/jxepro/clinflash/common/ThreadPoolMonitor.java
+      const parts = it.split(" ")
+      const [ept, type, mode, filetype, file] = parts
+      const cl = typeFormat(type)
+      arr.push([ept, cl.bold(type), mode, sky(filetype), cl(file)].join(" "))
+    }
     return arr
   }, [] as string[])
-  arr.push(...fileDetails)
-  console.log(arr.join("\n"))
 }
+
+function isAlreadyUpToDate(lines: string[]): boolean {
+  return "Already up to date." === lines[0]
+}
+
+function printAlreadyUpToDateLog(lines: string[]): void {
+  console.log(green(lines[0]))
+}
+
+/*
+<git-switch>
+
+Your branch is behind 'origin/timezone-uat' by 2 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+*/
 
 const format: Record<CommandType, CommandLogFormat[]> = {
   "git-pull": [
+    {
+      match: isAlreadyUpToDate,
+      print: printAlreadyUpToDateLog,
+    },
     {
       match: isUpdateFastForward,
       print: printUpdateFastForwardLog,
