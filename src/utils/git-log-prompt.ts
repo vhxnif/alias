@@ -1,4 +1,10 @@
-import { createPrompt, useKeypress, useState } from "@inquirer/core"
+import {
+  createPrompt,
+  useEffect,
+  useKeypress,
+  useRef,
+  useState,
+} from "@inquirer/core"
 import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
@@ -257,7 +263,6 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   const [show, setShow] = useState<string>(
     pageTable({ logs: data[pageIdx], selectedIdx: rowIdx })
   )
-  const [cardShow, setCardShow] = useState<boolean>(false)
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
@@ -267,8 +272,12 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
         yanked,
       })
     )
-    setCardShow(false)
   }
+
+  const cardShow = useRef(true)
+  useEffect(() => {
+    cardShow.current = true
+  }, [pageIdx, rowIdx])
 
   const changeMode = (m: Mode) => {
     setMode(m === "PAGE" ? "ROW" : "PAGE")
@@ -305,16 +314,16 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     refreshTableShow(pIdx, rowNextIdx(pIdx, rIdx))
   }
 
-  const changeCardShow = (pIdx: number, rIdx: number, cardShow: boolean) => {
+  const logDetail = (pIdx: number, rIdx: number) => {
     if (mode === "PAGE") {
       return
     }
-    if (cardShow) {
-      refreshTableShow(pIdx, rIdx)
-    } else {
+    if (cardShow.current) {
       setShow(rowCard(data[pIdx][rIdx]))
+    } else {
+      refreshTableShow(pIdx, rIdx)
     }
-    setCardShow(!cardShow)
+    cardShow.current = !cardShow.current
   }
 
   const yankHash = (pIdx: number, rIdx: number) => {
@@ -337,7 +346,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     } else if (isKey("k")) {
       prev(pageIdx, rowIdx)
     } else if (isKey("return")) {
-      changeCardShow(pageIdx, rowIdx, cardShow)
+      logDetail(pageIdx, rowIdx)
     } else if (isKey("y")) {
       yankHash(pageIdx, rowIdx)
     } else if (isKey("q")) {
