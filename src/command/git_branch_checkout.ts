@@ -10,6 +10,7 @@ import {
 import { errParse } from "../utils/command-utils"
 import { tryExec } from "../utils/platform-utils"
 import { rule } from "../store/branch-history-store"
+import { logcmd } from "../utils/command-log-format"
 
 const bs = await branchHistory()
 
@@ -39,8 +40,7 @@ new Command()
       name,
       command: async (branch: Branch) => {
         bs.addOrUpdate(branch.name)
-        const log = await gitSwitch({ branch })
-        console.log(log)
+        logcmd(await gitSwitch({ branch }), "git-switch")
       },
     })
   })
