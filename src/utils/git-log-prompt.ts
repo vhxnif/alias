@@ -1,11 +1,19 @@
-import { createPrompt, useKeypress, useState } from "@inquirer/core"
+import {
+  createPrompt,
+  useEffect,
+  useKeypress,
+  useMemo,
+  useRef,
+  useState,
+} from "@inquirer/core"
 import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
 import { isEmpty } from "./common-utils"
-import { terminal } from "./platform-utils"
-import { tableDefaultConfig } from "./table-utils"
+import { exec, terminal } from "./platform-utils"
+import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
+import { stringWidth } from "bun"
 
 export type GitLog = {
   hash: string
@@ -127,6 +135,7 @@ type PageTableArg = {
   selectedIdx: number
   yanked?: boolean
 }
+
 function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
   return table(
     [
@@ -137,35 +146,207 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
   )
 }
 
-function cardTableCofnig(title: string) {
-  const columnLimit = (terminal.column > 80 ? 80 : terminal.column) - 12
+function cardTableCofnig() {
   return {
     ...tableDefaultConfig,
-    header: {
-      content: title,
-      alignment: "left",
-    },
     columns: [
       {
         alignment: "left",
-        width: columnLimit,
+        width: tableColumnWidth,
       },
     ],
   } as TableUserConfig
 }
 
-function rowCard(log: GitLog): string {
-  const { author, time, date, message, body, humanDate, commitHash } = log
-  const { green, blue, pink, mauve, teal } = color
-  const datetime = `${date} ${time}`
-  const authorStr = blue.bold(author)
-  const humanDatetimeStr = green.bold(humanDate)
-  const datetiemStr = mauve.bold(datetime)
-  const title = `${authorStr}, ${humanDatetimeStr} (${datetiemStr})`
-  return table(
-    [[`${pink(message)}\n\n${teal(body)}`], [green(commitHash)]],
-    cardTableCofnig(title)
-  )
+function rowCard(detailStr: string | undefined): string {
+  return table([[`${detailInfoFormat(detailStr)}`]], cardTableCofnig())
+}
+
+function detailInfoFormat(deatilStr: string | undefined): string {
+  if (!deatilStr) {
+    return ""
+  }
+  const lines = deatilStr.split("\n")
+  if (lines.length <= 4) {
+    return ""
+  }
+  return lines
+    .reduce((arr, it, idx) => {
+      if (logTitleInfo(it, idx, arr)) {
+        return arr
+      }
+      if (logMessageAndBodyInfo(it, arr)) {
+        return arr
+      }
+      if (logFileChangedListInfo(it, arr)) {
+        return arr
+      }
+      logSummaryInfo(it, arr)
+      return arr
+    }, [] as string[][])
+    .map((it) => it.join("\n"))
+    .join("\n")
+}
+
+function logSummaryInfo(line: string, arr: string[][]): boolean {
+  const sm = (str: string) => {
+    const s = arr[3]
+    if (s) {
+      s.push(str)
+      return
+    }
+    arr.push([str])
+  }
+  const { blue, yellow, green, red } = color
+  const mp: Record<string, ChalkInstance> = {
+    file: yellow,
+    files: yellow,
+    changed: yellow,
+    "+": green,
+    insertions: green,
+    insertion: green,
+    "-": red,
+    deletion: red,
+    deletions: red,
+  }
+  const isSummaryLine = /^\s.*\b(\d+|file|files|changed)\b/g.test(line)
+  if (!isSummaryLine) return false
+  const ks = Object.keys(mp)
+    .map((it) => it.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|")
+  const coloredLine = line
+    .replace(/\d+/g, (m) => blue(m))
+    .replace(new RegExp(`\\b(${ks})\\b`, "g"), (m) => mp[m](m))
+
+  sm(coloredLine)
+  return true
+}
+
+function logFileChangedListInfo(line: string, arr: string[][]): boolean {
+  const fls = (str: string) => {
+    const fl = arr[2]
+    if (fl) {
+      fl.push(str)
+      return
+    }
+    arr.push([str])
+  }
+  const { mauve } = color
+  if (line.startsWith(" ") && line.includes("|")) {
+    const [file, change] = line.split("|")
+    fls(`${mauve(filePathWidthProcess(file))}|${fileChangeInfo(change)}`)
+    return true
+  }
+  return false
+}
+
+function filePathWidthProcess(file: string): string {
+  const width = Math.floor(tableColumnWidth * 0.75)
+  if (stringWidth(file) <= width) {
+    return file
+  }
+  const f = file
+    .trim()
+    .replace(".../", "")
+    .split("/")
+    .reverse()
+    .reduce((arr, it) => {
+      const r = `${arr.join("/")}/${it}/... `
+      if (stringWidth(r) <= width) {
+        arr.push(it)
+      }
+      return arr
+    }, [] as string[])
+    .reverse()
+    .join("/")
+  const str: string = ` .../${f}`
+  const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
+  return `${str}${" ".repeat(n)}  `
+}
+
+function fileChangeInfo(str: string): string {
+  const { blue, green, red } = color
+  const idx = str.lastIndexOf(" ")
+  const number = str.substring(0, idx)
+  const cg = str.substring(idx)
+
+  const c1 = cg.match(/\+/g)
+  const c2 = cg.match(/-/g)
+
+  if (!c1 && !c2) {
+    return str.replaceAll(/\d+/g, (m) => blue(m))
+  }
+  if (c1 && c2) {
+    let fg = green("+++")
+    if (c1.length > c2.length) {
+      fg = `${green("++")}${red("-")}`
+    }
+    if (c1.length < c2.length) {
+      fg = `${green("+")}${red("--")}`
+    }
+    return `${blue(number)} ${fg}`
+  }
+  if (c1) {
+    return `${blue(number)} ${green("+++")}`
+  }
+  return `${blue(number)} ${red("---")}`
+}
+
+function logTitleInfo(line: string, idx: number, arr: string[][]) {
+  const { yellow, blue, sky, green, mauve, teal } = color
+  if (line.startsWith("commit") && idx === 0) {
+    const hash = yellow(line.split(" ")[1])
+    arr.push([`${blue.bold("Commit:")} ${hash}`])
+    return true
+  }
+  if (line.startsWith("Merge:")) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_, oldHash, newHash] = line.split(" ")
+    arr[0].push(`${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`)
+    return true
+  }
+  if (line.startsWith("Author:")) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_, author, email] = line.split(" ")
+    arr[0].push(
+      `${blue.bold("Author:")} ${mauve(author)} <${green(
+        email.substring(1, email.length - 1)
+      )}>`
+    )
+    return true
+  }
+  if (line.startsWith("Date:")) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_, date] = line.split("Date:")
+    arr[0].push(`${blue.bold("Date:")} ${teal(date)}`)
+    return true
+  }
+  return false
+}
+
+function logMessageAndBodyInfo(line: string, arr: string[][]): boolean {
+  const msgPush = (str: string) => {
+    const messages = arr[1]
+    if (!messages) {
+      arr.push([str])
+      return
+    }
+    messages.push(str)
+  }
+  if (isEmpty(line)) {
+    msgPush(line)
+    return true
+  }
+  if (line.startsWith("    ")) {
+    const singleQuotes = /'([^']+)'/g
+    const doubleQuotes = /"([^"]+)"/g
+    const str = line
+      .replaceAll(singleQuotes, (m) => color.pink.bold(m))
+      .replaceAll(doubleQuotes, (m) => color.pink.bold(m))
+    msgPush(str)
+    return true
+  }
+  return false
 }
 
 function pages({ data, pageSize = 5 }: GitLogConfig): GitLog[][] {
@@ -257,7 +438,6 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   const [show, setShow] = useState<string>(
     pageTable({ logs: data[pageIdx], selectedIdx: rowIdx })
   )
-  const [cardShow, setCardShow] = useState<boolean>(false)
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
@@ -267,8 +447,20 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
         yanked,
       })
     )
-    setCardShow(false)
   }
+
+  const logDetailInfo = useMemo(async () => {
+    const commitHash: string | undefined = data[pageIdx]?.[rowIdx]?.commitHash
+    if (commitHash) {
+      return await exec(`git show --stat ${commitHash}`)
+    }
+    return void 0
+  }, [pageIdx, rowIdx])
+
+  const cardShow = useRef(true)
+  useEffect(() => {
+    cardShow.current = true
+  }, [pageIdx, rowIdx])
 
   const changeMode = (m: Mode) => {
     setMode(m === "PAGE" ? "ROW" : "PAGE")
@@ -305,16 +497,16 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     refreshTableShow(pIdx, rowNextIdx(pIdx, rIdx))
   }
 
-  const changeCardShow = (pIdx: number, rIdx: number, cardShow: boolean) => {
+  const logDetail = async (pIdx: number, rIdx: number) => {
     if (mode === "PAGE") {
       return
     }
-    if (cardShow) {
-      refreshTableShow(pIdx, rIdx)
+    if (cardShow.current) {
+      setShow(rowCard(await logDetailInfo))
     } else {
-      setShow(rowCard(data[pIdx][rIdx]))
+      refreshTableShow(pIdx, rIdx)
     }
-    setCardShow(!cardShow)
+    cardShow.current = !cardShow.current
   }
 
   const yankHash = (pIdx: number, rIdx: number) => {
@@ -326,7 +518,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     refreshTableShow(pIdx, rIdx, true)
   }
 
-  useKeypress((key, rl) => {
+  useKeypress(async (key, rl) => {
     const isKey = (str: string) => key.name === str
     if (isKey("space")) {
       changeMode(mode)
@@ -337,7 +529,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     } else if (isKey("k")) {
       prev(pageIdx, rowIdx)
     } else if (isKey("return")) {
-      changeCardShow(pageIdx, rowIdx, cardShow)
+      await logDetail(pageIdx, rowIdx)
     } else if (isKey("y")) {
       yankHash(pageIdx, rowIdx)
     } else if (isKey("q")) {
