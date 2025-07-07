@@ -25,7 +25,7 @@ new Command()
       if (branch) {
         const { name, frequency } = branch
         try {
-          await tryExec(`git switch ${name}`)
+          logcmd(await tryExec(`git switch ${name}`), "git-switch")
           bs.update(name, frequency)
           return
         } catch (err: unknown) {
