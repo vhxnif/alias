@@ -183,7 +183,6 @@ function printAlreadyUpToDateLog(lines: string[]): void {
 /*
 <git-switch>
 
-Switched to branch 'docker'
 Your branch is behind 'origin/docker' by 1 commit, and can be fast-forwarded.
   (use "git pull" to update your local branch)
 */
