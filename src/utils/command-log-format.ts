@@ -14,6 +14,14 @@ const curlyBraces = /\{([^{}]*)\}/g
 const singleQuotes = /'([^']+)'/g
 const doubleQuotes = /"([^"]+)"/g
 
+function rpl(str: string, r: RegExp, color: ChalkInstance): string | undefined {
+  const m = str.match(r)?.[0]
+  if (m) {
+    return str.replace(m, color.bold(m))
+  }
+  return void 0
+}
+
 /**
  *
  * Updating 3cdf34546..889f31388
@@ -175,7 +183,8 @@ function printAlreadyUpToDateLog(lines: string[]): void {
 /*
 <git-switch>
 
-Your branch is behind 'origin/timezone-uat' by 2 commits, and can be fast-forwarded.
+Switched to branch 'docker'
+Your branch is behind 'origin/docker' by 1 commit, and can be fast-forwarded.
   (use "git pull" to update your local branch)
 */
 function isFastForwardedPrompt(lines: string[]): boolean {
@@ -186,16 +195,17 @@ function isFastForwardedPrompt(lines: string[]): boolean {
 }
 
 function printFastForwardedPrompt(lines: string[]): void {
-  const rpl = (str: string, r: RegExp, color: ChalkInstance) => {
-    const m = str.match(r)?.[0]
-    if (m) {
-      return str.replace(r, color(r))
-    }
-    return void 0
-  }
   const line1 = rpl(lines[0], singleQuotes, mauve) ?? lines[0]
   const line2 = rpl(lines[1], doubleQuotes, green) ?? lines[1]
-  return console.log(`${line1}\n${line2}`)
+  console.log(`${line1}\n${line2}`)
+}
+
+function isUpToDate(lines: string[]): boolean {
+  return lines[0].startsWith(`Your branch is up to date with`)
+}
+
+function printUpToDate(lines: string[]): void {
+  console.log(rpl(lines[0], singleQuotes, mauve) ?? lines[0])
 }
 
 const format: Record<CommandType, CommandLogFormat[]> = {
@@ -213,6 +223,10 @@ const format: Record<CommandType, CommandLogFormat[]> = {
     {
       match: isFastForwardedPrompt,
       print: printFastForwardedPrompt,
+    },
+    {
+      match: isUpToDate,
+      print: printUpToDate,
     },
   ],
 }
