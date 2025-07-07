@@ -61,4 +61,12 @@ function tableDataPartation<T>(data: T[], pageSize: number = 5): T[][] {
   }, [] as T[][])
 }
 
-export { tableConfig, printTable, tableDataPartation, tableDefaultConfig }
+const tableColumnWidth = (terminal.column > 80 ? 80 : terminal.column) - 12
+
+export {
+  tableConfig,
+  printTable,
+  tableDataPartation,
+  tableDefaultConfig,
+  tableColumnWidth,
+}
