@@ -338,7 +338,12 @@ function logMessageAndBodyInfo(line: string, arr: string[][]): boolean {
     return true
   }
   if (line.startsWith("    ")) {
-    msgPush(line)
+    const singleQuotes = /'([^']+)'/g
+    const doubleQuotes = /"([^"]+)"/g
+    const str = line
+      .replaceAll(singleQuotes, (m) => color.pink.bold(m))
+      .replaceAll(doubleQuotes, (m) => color.pink.bold(m))
+    msgPush(str)
     return true
   }
   return false
