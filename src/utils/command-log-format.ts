@@ -1,13 +1,18 @@
+import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
 
 const { green, yellow, blue, teal, sky, mauve, red } = color
 
-type CommandType = "git-pull"
+type CommandType = "git-pull" | "git-switch"
 
 type CommandLogFormat = {
   match: (lines: string[]) => boolean
   print: (lines: string[]) => void
 }
+
+const curlyBraces = /\{([^{}]*)\}/g
+const singleQuotes = /'([^']+)'/g
+const doubleQuotes = /"([^"]+)"/g
 
 /**
  *
@@ -135,8 +140,7 @@ function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
     const renamePath = () => {
       // rename src/main/resources/icons/{grayStarOff.svg => starOffGray.svg}
       const path = it.substring(8)
-      const regex = /\{([^{}]*)\}/g
-      const mts = path.match(regex)?.[0]
+      const mts = path.match(curlyBraces)?.[0]
       if (!mts) {
         return blue(path)
       }
@@ -174,6 +178,25 @@ function printAlreadyUpToDateLog(lines: string[]): void {
 Your branch is behind 'origin/timezone-uat' by 2 commits, and can be fast-forwarded.
   (use "git pull" to update your local branch)
 */
+function isFastForwardedPrompt(lines: string[]): boolean {
+  return (
+    lines[0].startsWith(`Your branch is behind`) &&
+    lines[0].endsWith(`can be fast-forwarded.`)
+  )
+}
+
+function printFastForwardedPrompt(lines: string[]): void {
+  const rpl = (str: string, r: RegExp, color: ChalkInstance) => {
+    const m = str.match(r)?.[0]
+    if (m) {
+      return str.replace(r, color(r))
+    }
+    return void 0
+  }
+  const line1 = rpl(lines[0], singleQuotes, mauve) ?? lines[0]
+  const line2 = rpl(lines[1], doubleQuotes, green) ?? lines[1]
+  return console.log(`${line1}\n${line2}`)
+}
 
 const format: Record<CommandType, CommandLogFormat[]> = {
   "git-pull": [
@@ -186,6 +209,27 @@ const format: Record<CommandType, CommandLogFormat[]> = {
       print: printUpdateFastForwardLog,
     },
   ],
+  "git-switch": [
+    {
+      match: isFastForwardedPrompt,
+      print: printFastForwardedPrompt,
+    },
+  ],
 }
 
-export { format }
+function logcmd(log: string, type: CommandType): void {
+  const lines = log.split("\n")
+  let foramtMatched = false
+  format[type].forEach((it) => {
+    if (it.match(lines)) {
+      it.print(lines)
+      foramtMatched = true
+      return
+    }
+  })
+  if (!foramtMatched) {
+    console.log(color.yellow(log))
+  }
+}
+
+export { format, logcmd }
