@@ -10,10 +10,9 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
-import { isEmpty } from "./common-utils"
+import { cleanFilePath, isEmpty } from "./common-utils"
 import { exec, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
-import { stringWidth } from "bun"
 
 export type GitLog = {
   hash: string
@@ -234,34 +233,14 @@ function logFileChangedListInfo(line: string, arr: string[][]): boolean {
   const { mauve } = color
   if (line.startsWith(" ") && line.includes("|")) {
     const [file, change] = line.split("|")
-    fls(`${mauve(filePathWidthProcess(file))}|${fileChangeInfo(change)}`)
+    fls(
+      `${mauve(cleanFilePath(file, tableColumnWidth))}|${fileChangeInfo(
+        change
+      )}`
+    )
     return true
   }
   return false
-}
-
-function filePathWidthProcess(file: string): string {
-  const width = Math.floor(tableColumnWidth * 0.75)
-  if (stringWidth(file) <= width) {
-    return file
-  }
-  const f = file
-    .trim()
-    .replace(".../", "")
-    .split("/")
-    .reverse()
-    .reduce((arr, it) => {
-      const r = `${arr.join("/")}/${it}/... `
-      if (stringWidth(r) <= width) {
-        arr.push(it)
-      }
-      return arr
-    }, [] as string[])
-    .reverse()
-    .join("/")
-  const str: string = ` .../${f}`
-  const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
-  return `${str}${" ".repeat(n)}  `
 }
 
 function fileChangeInfo(str: string): string {
