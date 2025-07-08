@@ -1,5 +1,6 @@
 import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
+import { stringWidth } from "bun"
 
 const printErr = (str: string) => console.log(color.red(str))
 
@@ -40,4 +41,28 @@ function lines(str: string, spliter: string = "\n"): string[] {
     .filter((it) => it)
 }
 
-export { printCmdLog, printErr, isEmpty, lines }
+function cleanFilePath(file: string, widthLimit: number): string {
+  const width = Math.floor(widthLimit * 0.75)
+  if (stringWidth(file) <= width) {
+    return file
+  }
+  const f = file
+    .trim()
+    .replace(".../", "")
+    .split("/")
+    .reverse()
+    .reduce((arr, it) => {
+      const r = `${arr.join("/")}/${it}/... `
+      if (stringWidth(r) <= width) {
+        arr.push(it)
+      }
+      return arr
+    }, [] as string[])
+    .reverse()
+    .join("/")
+  const str: string = ` .../${f}`
+  const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
+  return `${str}${" ".repeat(n)}  `
+}
+
+export { printCmdLog, printErr, isEmpty, lines, cleanFilePath }

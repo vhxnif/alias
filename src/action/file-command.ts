@@ -1,7 +1,7 @@
 import { checkbox, select } from "@inquirer/prompts"
-import { isEmpty } from "../utils/common-utils"
+import { cleanFilePath, isEmpty } from "../utils/common-utils"
 import type { Choice } from "../utils/inquirer-utils"
-import { exec } from "../utils/platform-utils"
+import { exec, terminal } from "../utils/platform-utils"
 
 async function pwd(): Promise<string> {
   return await exec("pwd")
@@ -121,7 +121,7 @@ function fileChoices(files: File[]): Choice<File>[] {
     throw Error(`File Missing.`)
   }
   return files.map((it) => ({
-    name: it.filePath,
+    name: cleanFilePath(it.filePath, terminal.column),
     value: it,
   }))
 }
