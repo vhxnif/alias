@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { select } from "@inquirer/prompts"
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
-import { isEmpty, printErr } from "../utils/common-utils"
+import { errParse, isEmpty, printErr } from "../utils/common-utils"
 import { exec, execPrint } from "../utils/platform-utils"
 import { tagFormat } from "../utils/diff-utils"
 
