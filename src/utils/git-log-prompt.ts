@@ -470,8 +470,8 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
       return
     }
     setSummary(true)
-    const { blue, yellow , mauve } = color
-    const { author, commitHash, humanDate} = dataPages[pIdx][rIdx]
+    const { blue, yellow, mauve } = color
+    const { author, commitHash, humanDate } = dataPages[pIdx][rIdx]
     setShow(`${blue.bold(author)} (${mauve(humanDate)}) ${yellow(commitHash)}`)
 
     done({
@@ -520,7 +520,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
       data: dataPages,
     })
     if (keyBar) {
-      return `${normalKeyPrompt()}\n${rowKeyPrompt()}\n${s}`
+      return `${s}\n${normalKeyPrompt()}\n${rowKeyPrompt()}`
     }
     return s
   }
