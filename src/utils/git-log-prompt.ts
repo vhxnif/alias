@@ -1,5 +1,7 @@
 import {
   createPrompt,
+  isEnterKey,
+  isSpaceKey,
   useEffect,
   useKeypress,
   useMemo,
@@ -11,7 +13,7 @@ import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
 import { cleanFilePath, fileChangeInfo, isEmpty } from "./common-utils"
-import { exec, terminal } from "./platform-utils"
+import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
 
 export type GitLog = {
@@ -26,13 +28,14 @@ export type GitLog = {
   humanDate: string
 }
 
+type Mode = "PAGE" | "ROW"
 export type GitLogKey = keyof GitLog
 
-type Mode = "PAGE" | "ROW"
-
-type GitLogConfig = {
+export type GitLogConfig = {
   data: GitLog[]
   pageSize?: number
+  pageIndex?: number
+  rowIndex?: number
 }
 
 function gitLogValueFilter(logs: GitLog[], columns: GitLogKey[]): string[] {
@@ -86,7 +89,7 @@ function tableConfig(tableData: GitLog[]): TableUserConfig {
 function gitLogToTableData(
   logs: GitLog[],
   selectedIdx: number,
-  yanked?: boolean,
+  yanked?: boolean
 ): string[][] {
   return logs.map((l, idx) => {
     const { hash, author, message, time, date, ref } = l
@@ -141,7 +144,7 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
       tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]),
       ...gitLogToTableData(logs, selectedIdx, yanked),
     ],
-    tableConfig(logs),
+    tableConfig(logs)
   )
 }
 
@@ -256,8 +259,8 @@ function logTitleInfo(line: string, idx: number, arr: string[][]) {
     const [_, author, email] = line.split(" ")
     arr[0].push(
       `${blue.bold("Author:")} ${mauve(author)} <${green(
-        email.substring(1, email.length - 1),
-      )}>`,
+        email.substring(1, email.length - 1)
+      )}>`
     )
     return true
   }
@@ -295,7 +298,7 @@ function logMessageAndBodyInfo(line: string, arr: string[][]): boolean {
   return false
 }
 
-function pages({ data, pageSize = 5 }: GitLogConfig): GitLog[][] {
+function pages(data: GitLog[], pageSize: number): GitLog[][] {
   return data.reduce((arr, it) => {
     const last = arr[arr.length - 1]
     if (!last || last.length === pageSize) {
@@ -376,27 +379,30 @@ function statusPrompt({
   return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
 }
 
-export default createPrompt<number, GitLogConfig>((config, done) => {
-  const data = pages(config)
-  const [mode, setMode] = useState<Mode>("PAGE")
-  const [rowIdx, setRowIdx] = useState<number>(-1)
-  const [pageIdx, setPageIdx] = useState<number>(0)
+export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
+  const { data, pageIndex, rowIndex, pageSize } = config
+  const dataPages = pages(data, pageSize ?? 5)
+  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAGE")
+  const [rowIdx, setRowIdx] = useState<number>(rowIndex ?? -1)
+  const [pageIdx, setPageIdx] = useState<number>(pageIndex ?? 0)
   const [show, setShow] = useState<string>(
-    pageTable({ logs: data[pageIdx], selectedIdx: rowIdx }),
+    pageTable({ logs: dataPages[pageIdx], selectedIdx: rowIdx })
   )
+  const [summary, setSummary] = useState(false)
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
       pageTable({
-        logs: data[pIdx],
+        logs: dataPages[pIdx],
         selectedIdx: rIdx,
         yanked,
-      }),
+      })
     )
   }
 
   const logDetailInfo = useMemo(async () => {
-    const commitHash: string | undefined = data[pageIdx]?.[rowIdx]?.commitHash
+    const commitHash: string | undefined =
+      dataPages[pageIdx]?.[rowIdx]?.commitHash
     if (commitHash) {
       return await exec(`git show --stat ${commitHash}`)
     }
@@ -422,13 +428,16 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   const pageIdxMove = (newIdx: number) => getNewIdx(newIdx, setPageIdx)
   const rowIdxMove = (newIdx: number) => getNewIdx(newIdx, setRowIdx)
   const pagePrevIdx = (pIdx: number) => pageIdxMove(prevIdx(pIdx))
-  const pageNextIdx = (pIdx: number) => pageIdxMove(nextIdx(pIdx, data.length))
+  const pageNextIdx = (pIdx: number) =>
+    pageIdxMove(nextIdx(pIdx, dataPages.length))
   const rowPrevIdx = (rIdx: number) => rowIdxMove(prevIdx(rIdx))
   const rowNextIdx = (pIdx: number, rIdx: number) =>
-    rowIdxMove(nextIdx(rIdx, data[pIdx].length))
+    rowIdxMove(nextIdx(rIdx, dataPages[pIdx].length))
+
+  const isPage = () => mode === "PAGE"
 
   const prev = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       refreshTableShow(pagePrevIdx(pIdx), rIdx)
       return
     }
@@ -436,7 +445,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   }
 
   const next = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       refreshTableShow(pageNextIdx(pIdx), rIdx)
       return
     }
@@ -444,7 +453,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   }
 
   const logDetail = async (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       return
     }
     if (cardShow.current) {
@@ -455,18 +464,35 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     cardShow.current = !cardShow.current
   }
 
-  const yankHash = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+  const logSummaryShow = (pIdx: number, rIdx: number) => {
+    if (isPage()) {
       return
     }
-    const { commitHash } = data[pIdx][rIdx]
+    setSummary(true)
+    const { blue, yellow , mauve } = color
+    const { author, commitHash, humanDate} = dataPages[pIdx][rIdx]
+    setShow(`${blue.bold(author)} (${mauve(humanDate)}) ${yellow(commitHash)}`)
+
+    done({
+      ...config,
+      pageIndex: pIdx,
+      rowIndex: rIdx,
+      pageSize: pageSize ?? 5,
+    } as GitLogConfig)
+  }
+
+  const yankHash = (pIdx: number, rIdx: number) => {
+    if (isPage()) {
+      return
+    }
+    const { commitHash } = dataPages[pIdx][rIdx]
     clipboard.writeSync(commitHash)
     refreshTableShow(pIdx, rIdx, true)
   }
 
   useKeypress(async (key, rl) => {
     const isKey = (str: string) => key.name === str
-    if (isKey("space")) {
+    if (isSpaceKey(key)) {
       changeMode(mode)
     } else if (isKey("h")) {
       setKeyBar(!keyBar)
@@ -474,23 +500,31 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
       next(pageIdx, rowIdx)
     } else if (isKey("k")) {
       prev(pageIdx, rowIdx)
-    } else if (isKey("return")) {
+    } else if (isEnterKey(key)) {
       await logDetail(pageIdx, rowIdx)
     } else if (isKey("y")) {
       yankHash(pageIdx, rowIdx)
+    } else if (isKey("s")) {
+      logSummaryShow(pageIdx, rowIdx)
     } else if (isKey("q")) {
-      done(-1)
+      exit()
     }
     rl.clearLine(0)
   })
-  const status = statusPrompt({
-    mode,
-    pageIdx,
-    rowIdx,
-    data,
-  })
-  if (keyBar) {
-    return `${show}${normalKeyPrompt()}\n${rowKeyPrompt()}\n${status}`
+  const status = () => {
+    const s = statusPrompt({
+      mode,
+      pageIdx,
+      rowIdx,
+      data: dataPages,
+    })
+    if (keyBar) {
+      return `${normalKeyPrompt()}\n${rowKeyPrompt()}\n${s}`
+    }
+    return s
   }
-  return `${show}${status}`
+  if (summary) {
+    return show
+  }
+  return `${show}${status()}`
 })
