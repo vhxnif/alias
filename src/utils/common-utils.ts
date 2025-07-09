@@ -22,6 +22,14 @@ const printCmdLog = (str: string) => {
   console.log(tmp)
 }
 
+async function errParse(e: unknown) {
+  if (e instanceof Error) {
+    printErr(e.message)
+    return
+  }
+  console.log(e)
+}
+
 function isEmpty<T>(param: string | T[] | undefined | null) {
   if (!param) {
     return true
@@ -104,4 +112,12 @@ function fileChangeInfo(str: string): string {
   return `${blue(number)} ${red("---")}`
 }
 
-export { printCmdLog, printErr, isEmpty, lines, cleanFilePath, fileChangeInfo }
+export {
+  printCmdLog,
+  printErr,
+  errParse,
+  isEmpty,
+  lines,
+  cleanFilePath,
+  fileChangeInfo,
+}

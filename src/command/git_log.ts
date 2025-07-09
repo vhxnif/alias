@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
-import { isEmpty, lines } from "../utils/common-utils"
+import { errParse, isEmpty, lines } from "../utils/common-utils"
 import type { GitLog } from "../utils/git-log-prompt"
 import { default as page } from "../utils/git-log-prompt"
 import { exec } from "../utils/platform-utils"

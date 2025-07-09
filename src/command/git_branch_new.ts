@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { branchAction, gitSwitch, type Branch } from "../action/branch-command"
-import { errParse } from "../utils/command-utils"
-import { printCmdLog } from "../utils/common-utils"
+import { errParse, printCmdLog } from "../utils/common-utils"
 
 new Command()
   .name("gbn")
