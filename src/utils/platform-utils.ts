@@ -1,8 +1,8 @@
-import path from "path"
-import os from "node:os"
-import { printCmdLog, printErr } from "./common-utils"
 import { $, ShellError } from "bun"
 import { accessSync, constants, mkdirSync } from "node:fs"
+import os from "node:os"
+import path from "path"
+import { printCmdLog, printErr } from "./common-utils"
 
 const terminal: Record<string, number> = {
   column: process.stdout.columns,
@@ -84,4 +84,17 @@ function configPath(): string | undefined {
   }
 }
 
-export { exec, tryExec, execPrint, editor, configPath, terminal, platform }
+function exit() {
+  process.exit()
+}
+
+export {
+  configPath,
+  editor,
+  exec,
+  execPrint,
+  exit,
+  platform,
+  terminal,
+  tryExec,
+}
