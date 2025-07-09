@@ -41,6 +41,8 @@ export default createPrompt<number, ConfirmConfig>((config, done) => {
   })
   const key = (str: string) => theme.style.key(str)
   const currPage = `${value + 1}/${data.length}`
-  const message = `Page ${key(currPage)}, Prev ${key("k")}, Next ${key("j")}, Exit ${key("q")}`
+  const message = `Page ${key(currPage)}, Prev ${key("k")}, Next ${key(
+    "j"
+  )}, Exit ${key("q")}`
   return `${data[value]}${message}`
 })
