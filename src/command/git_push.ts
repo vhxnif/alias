@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
 import { execPrint } from "../utils/platform-utils"
+import { errParse } from "../utils/common-utils"
 
 new Command()
   .name("gps")

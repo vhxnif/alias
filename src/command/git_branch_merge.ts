@@ -7,7 +7,7 @@ import {
   type Branch,
 } from "../action/branch-command"
 import { BranchHistory, rule } from "../store/branch-history-store"
-import { errParse } from "../utils/command-utils"
+import { errParse } from "../utils/common-utils"
 
 const bs = await branchHistory()
 

@@ -3,9 +3,9 @@ import { Command } from "commander"
 import { table } from "table"
 import { branchList, type Branch } from "../action/branch-command"
 import { color, tableTitle } from "../utils/color-utils"
-import { errParse } from "../utils/command-utils"
 import { default as page } from "../utils/page-prompt"
 import { tableDataPartation, tableDefaultConfig } from "../utils/table-utils"
+import { errParse } from "../utils/common-utils"
 
 function branchParse(bs: Branch[]): string[][] {
   return bs.map((it) => {

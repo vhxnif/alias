@@ -2,8 +2,7 @@
 import { Command } from "commander"
 import { stashList } from "../action/stash-command"
 import { color, tableTitle } from "../utils/color-utils"
-import { errParse } from "../utils/command-utils"
-import { isEmpty, printErr } from "../utils/common-utils"
+import { errParse, isEmpty, printErr } from "../utils/common-utils"
 import { printTable, tableConfig } from "../utils/table-utils"
 
 new Command()

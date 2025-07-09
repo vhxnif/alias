@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
 import { stashAction, stashApply } from "../action/stash-command"
+import { errParse } from "../utils/common-utils"
 
 new Command()
   .name("gsu")

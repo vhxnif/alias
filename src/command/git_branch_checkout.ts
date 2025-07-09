@@ -7,10 +7,10 @@ import {
   gitSwitch,
   type Branch,
 } from "../action/branch-command"
-import { errParse } from "../utils/command-utils"
 import { tryExec } from "../utils/platform-utils"
 import { rule } from "../store/branch-history-store"
 import { logcmd } from "../utils/command-log-format"
+import { errParse } from "../utils/common-utils"
 
 const bs = await branchHistory()
 

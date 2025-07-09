@@ -5,7 +5,7 @@ import {
   fileChanged,
   gitFileAdd,
 } from "../action/file-command"
-import { errParse } from "../utils/command-utils"
+import { errParse } from "../utils/common-utils"
 
 new Command()
   .name("gfa")

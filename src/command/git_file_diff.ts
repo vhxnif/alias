@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
 import {
   fileChanged,
   gitFileDiff,
@@ -8,6 +7,7 @@ import {
   type File,
 } from "../action/file-command"
 import { diffFormat } from "../utils/diff-utils"
+import { errParse } from "../utils/common-utils"
 
 new Command()
   .name("gfc")
