@@ -41,10 +41,20 @@ function lines(str: string, spliter: string = "\n"): string[] {
     .filter((it) => it)
 }
 
-function cleanFilePath(file: string, widthLimit: number): string {
+function cleanFilePath(
+  file: string,
+  widthLimit: number,
+  withColor: boolean = true,
+): string {
+  const rf = (str: string) => {
+    if (withColor) {
+      return color.mauve(str)
+    }
+    return str
+  }
   const width = Math.floor(widthLimit * 0.75)
   if (stringWidth(file) <= width) {
-    return file
+    return rf(file)
   }
   const f = file
     .trim()
@@ -62,7 +72,36 @@ function cleanFilePath(file: string, widthLimit: number): string {
     .join("/")
   const str: string = ` .../${f}`
   const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
-  return `${str}${" ".repeat(n)}  `
+  const resStr = `${str}${" ".repeat(n)}  `
+  return rf(resStr)
 }
 
-export { printCmdLog, printErr, isEmpty, lines, cleanFilePath }
+function fileChangeInfo(str: string): string {
+  const { blue, green, red } = color
+  const idx = str.lastIndexOf(" ")
+  const number = str.substring(0, idx)
+  const cg = str.substring(idx)
+
+  const c1 = cg.match(/\+/g)
+  const c2 = cg.match(/-/g)
+
+  if (!c1 && !c2) {
+    return str.replaceAll(/\d+/g, (m) => blue(m))
+  }
+  if (c1 && c2) {
+    let fg = green("+++")
+    if (c1.length > c2.length) {
+      fg = `${green("++")}${red("-")}`
+    }
+    if (c1.length < c2.length) {
+      fg = `${green("+")}${red("--")}`
+    }
+    return `${blue(number)} ${fg}`
+  }
+  if (c1) {
+    return `${blue(number)} ${green("+++")}`
+  }
+  return `${blue(number)} ${red("---")}`
+}
+
+export { printCmdLog, printErr, isEmpty, lines, cleanFilePath, fileChangeInfo }

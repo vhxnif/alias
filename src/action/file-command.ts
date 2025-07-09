@@ -99,7 +99,7 @@ async function gitFileDiff({ filePath }: File): Promise<string> {
 
 async function gitFileRestore(files: File[]): Promise<string> {
   return await exec(
-    `git restore --staged ${files.map((it) => it.filePath).join(" ")}`
+    `git restore --staged ${files.map((it) => it.filePath).join(" ")}`,
   )
 }
 
@@ -121,7 +121,7 @@ function fileChoices(files: File[]): Choice<File>[] {
     throw Error(`File Missing.`)
   }
   return files.map((it) => ({
-    name: cleanFilePath(it.filePath, terminal.column),
+    name: cleanFilePath(it.filePath, terminal.column, false),
     value: it,
   }))
 }
@@ -132,7 +132,7 @@ async function batchFileAction({
   fileFilter,
 }: BatchFileActionArg): Promise<void> {
   const choices = await fileStatus().then((it) =>
-    fileChoices(it.filter(fileFilter))
+    fileChoices(it.filter(fileFilter)),
   )
   await checkbox({
     message: message ? message : "Select File:",
@@ -151,7 +151,7 @@ async function singleFileAction({
   fileFilter,
 }: SingleFielActionArg): Promise<void> {
   const choices = await fileStatus().then((it) =>
-    fileChoices(it.filter(fileFilter))
+    fileChoices(it.filter(fileFilter)),
   )
   await select({
     message: message ? message : "Select File:",

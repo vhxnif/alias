@@ -10,7 +10,7 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
-import { cleanFilePath, isEmpty } from "./common-utils"
+import { cleanFilePath, fileChangeInfo, isEmpty } from "./common-utils"
 import { exec, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
 
@@ -86,7 +86,7 @@ function tableConfig(tableData: GitLog[]): TableUserConfig {
 function gitLogToTableData(
   logs: GitLog[],
   selectedIdx: number,
-  yanked?: boolean
+  yanked?: boolean,
 ): string[][] {
   return logs.map((l, idx) => {
     const { hash, author, message, time, date, ref } = l
@@ -141,7 +141,7 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
       tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]),
       ...gitLogToTableData(logs, selectedIdx, yanked),
     ],
-    tableConfig(logs)
+    tableConfig(logs),
   )
 }
 
@@ -230,45 +230,12 @@ function logFileChangedListInfo(line: string, arr: string[][]): boolean {
     }
     arr.push([str])
   }
-  const { mauve } = color
   if (line.startsWith(" ") && line.includes("|")) {
     const [file, change] = line.split("|")
-    fls(
-      `${mauve(cleanFilePath(file, tableColumnWidth))}|${fileChangeInfo(
-        change
-      )}`
-    )
+    fls(`${cleanFilePath(file, tableColumnWidth)}|${fileChangeInfo(change)}`)
     return true
   }
   return false
-}
-
-function fileChangeInfo(str: string): string {
-  const { blue, green, red } = color
-  const idx = str.lastIndexOf(" ")
-  const number = str.substring(0, idx)
-  const cg = str.substring(idx)
-
-  const c1 = cg.match(/\+/g)
-  const c2 = cg.match(/-/g)
-
-  if (!c1 && !c2) {
-    return str.replaceAll(/\d+/g, (m) => blue(m))
-  }
-  if (c1 && c2) {
-    let fg = green("+++")
-    if (c1.length > c2.length) {
-      fg = `${green("++")}${red("-")}`
-    }
-    if (c1.length < c2.length) {
-      fg = `${green("+")}${red("--")}`
-    }
-    return `${blue(number)} ${fg}`
-  }
-  if (c1) {
-    return `${blue(number)} ${green("+++")}`
-  }
-  return `${blue(number)} ${red("---")}`
 }
 
 function logTitleInfo(line: string, idx: number, arr: string[][]) {
@@ -289,8 +256,8 @@ function logTitleInfo(line: string, idx: number, arr: string[][]) {
     const [_, author, email] = line.split(" ")
     arr[0].push(
       `${blue.bold("Author:")} ${mauve(author)} <${green(
-        email.substring(1, email.length - 1)
-      )}>`
+        email.substring(1, email.length - 1),
+      )}>`,
     )
     return true
   }
@@ -415,7 +382,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   const [rowIdx, setRowIdx] = useState<number>(-1)
   const [pageIdx, setPageIdx] = useState<number>(0)
   const [show, setShow] = useState<string>(
-    pageTable({ logs: data[pageIdx], selectedIdx: rowIdx })
+    pageTable({ logs: data[pageIdx], selectedIdx: rowIdx }),
   )
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
@@ -424,7 +391,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
         logs: data[pIdx],
         selectedIdx: rIdx,
         yanked,
-      })
+      }),
     )
   }
 
