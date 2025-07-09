@@ -110,7 +110,7 @@ new Command()
             spinner.succeed(color.green.bold("Success."))
             flg = true
           }
-          process.stdout.write(str)
+          process.stdout.write(color.green(str))
         },
       })
       console.log()
