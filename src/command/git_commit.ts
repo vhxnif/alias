@@ -24,7 +24,7 @@ async function commitWithMessage() {
       spinner.succeed(color.green.bold("Summary completed!!!"))
       await editor(
         str,
-        async (tmpPath) => await execPrint(`git commit -F "${tmpPath}"`)
+        async (tmpPath) => await execPrint(`git commit -F "${tmpPath}"`),
       )
     },
   })
