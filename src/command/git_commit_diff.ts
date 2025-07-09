@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
 import { select } from "@inquirer/prompts"
 import { Command } from "commander"
-import { errParse } from "../utils/command-utils"
-import { isEmpty, lines } from "../utils/common-utils"
+import { errParse, isEmpty, lines } from "../utils/common-utils"
 import { exec } from "../utils/platform-utils"
 
 function logCommand(

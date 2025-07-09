@@ -1,5 +1,7 @@
 import {
   createPrompt,
+  isEnterKey,
+  isSpaceKey,
   useEffect,
   useKeypress,
   useMemo,
@@ -10,10 +12,9 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
-import { isEmpty } from "./common-utils"
-import { exec, terminal } from "./platform-utils"
+import { cleanFilePath, fileChangeInfo, isEmpty } from "./common-utils"
+import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
-import { stringWidth } from "bun"
 
 export type GitLog = {
   hash: string
@@ -27,13 +28,14 @@ export type GitLog = {
   humanDate: string
 }
 
+type Mode = "PAGE" | "ROW"
 export type GitLogKey = keyof GitLog
 
-type Mode = "PAGE" | "ROW"
-
-type GitLogConfig = {
+export type GitLogConfig = {
   data: GitLog[]
   pageSize?: number
+  pageIndex?: number
+  rowIndex?: number
 }
 
 function gitLogValueFilter(logs: GitLog[], columns: GitLogKey[]): string[] {
@@ -231,65 +233,12 @@ function logFileChangedListInfo(line: string, arr: string[][]): boolean {
     }
     arr.push([str])
   }
-  const { mauve } = color
   if (line.startsWith(" ") && line.includes("|")) {
     const [file, change] = line.split("|")
-    fls(`${mauve(filePathWidthProcess(file))}|${fileChangeInfo(change)}`)
+    fls(`${cleanFilePath(file, tableColumnWidth)}|${fileChangeInfo(change)}`)
     return true
   }
   return false
-}
-
-function filePathWidthProcess(file: string): string {
-  const width = Math.floor(tableColumnWidth * 0.75)
-  if (stringWidth(file) <= width) {
-    return file
-  }
-  const f = file
-    .trim()
-    .replace(".../", "")
-    .split("/")
-    .reverse()
-    .reduce((arr, it) => {
-      const r = `${arr.join("/")}/${it}/... `
-      if (stringWidth(r) <= width) {
-        arr.push(it)
-      }
-      return arr
-    }, [] as string[])
-    .reverse()
-    .join("/")
-  const str: string = ` .../${f}`
-  const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
-  return `${str}${" ".repeat(n)}  `
-}
-
-function fileChangeInfo(str: string): string {
-  const { blue, green, red } = color
-  const idx = str.lastIndexOf(" ")
-  const number = str.substring(0, idx)
-  const cg = str.substring(idx)
-
-  const c1 = cg.match(/\+/g)
-  const c2 = cg.match(/-/g)
-
-  if (!c1 && !c2) {
-    return str.replaceAll(/\d+/g, (m) => blue(m))
-  }
-  if (c1 && c2) {
-    let fg = green("+++")
-    if (c1.length > c2.length) {
-      fg = `${green("++")}${red("-")}`
-    }
-    if (c1.length < c2.length) {
-      fg = `${green("+")}${red("--")}`
-    }
-    return `${blue(number)} ${fg}`
-  }
-  if (c1) {
-    return `${blue(number)} ${green("+++")}`
-  }
-  return `${blue(number)} ${red("---")}`
 }
 
 function logTitleInfo(line: string, idx: number, arr: string[][]) {
@@ -349,7 +298,7 @@ function logMessageAndBodyInfo(line: string, arr: string[][]): boolean {
   return false
 }
 
-function pages({ data, pageSize = 5 }: GitLogConfig): GitLog[][] {
+function pages(data: GitLog[], pageSize: number): GitLog[][] {
   return data.reduce((arr, it) => {
     const last = arr[arr.length - 1]
     if (!last || last.length === pageSize) {
@@ -402,6 +351,7 @@ function normalKeyPrompt(): string {
 function rowKeyPrompt(): string {
   const keys = groupKey([
     ["Yank", "y"],
+    ["Summary", "s"],
     ["Detail", "enter"],
   ])
   return `${groupKeyDesc("ROW")}: ${keys}`
@@ -430,19 +380,21 @@ function statusPrompt({
   return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
 }
 
-export default createPrompt<number, GitLogConfig>((config, done) => {
-  const data = pages(config)
-  const [mode, setMode] = useState<Mode>("PAGE")
-  const [rowIdx, setRowIdx] = useState<number>(-1)
-  const [pageIdx, setPageIdx] = useState<number>(0)
+export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
+  const { data, pageIndex, rowIndex, pageSize } = config
+  const dataPages = pages(data, pageSize ?? 5)
+  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAGE")
+  const [rowIdx, setRowIdx] = useState<number>(rowIndex ?? -1)
+  const [pageIdx, setPageIdx] = useState<number>(pageIndex ?? 0)
   const [show, setShow] = useState<string>(
-    pageTable({ logs: data[pageIdx], selectedIdx: rowIdx })
+    pageTable({ logs: dataPages[pageIdx], selectedIdx: rowIdx })
   )
+  const [summary, setSummary] = useState(false)
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
       pageTable({
-        logs: data[pIdx],
+        logs: dataPages[pIdx],
         selectedIdx: rIdx,
         yanked,
       })
@@ -450,7 +402,8 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   }
 
   const logDetailInfo = useMemo(async () => {
-    const commitHash: string | undefined = data[pageIdx]?.[rowIdx]?.commitHash
+    const commitHash: string | undefined =
+      dataPages[pageIdx]?.[rowIdx]?.commitHash
     if (commitHash) {
       return await exec(`git show --stat ${commitHash}`)
     }
@@ -476,13 +429,16 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   const pageIdxMove = (newIdx: number) => getNewIdx(newIdx, setPageIdx)
   const rowIdxMove = (newIdx: number) => getNewIdx(newIdx, setRowIdx)
   const pagePrevIdx = (pIdx: number) => pageIdxMove(prevIdx(pIdx))
-  const pageNextIdx = (pIdx: number) => pageIdxMove(nextIdx(pIdx, data.length))
+  const pageNextIdx = (pIdx: number) =>
+    pageIdxMove(nextIdx(pIdx, dataPages.length))
   const rowPrevIdx = (rIdx: number) => rowIdxMove(prevIdx(rIdx))
   const rowNextIdx = (pIdx: number, rIdx: number) =>
-    rowIdxMove(nextIdx(rIdx, data[pIdx].length))
+    rowIdxMove(nextIdx(rIdx, dataPages[pIdx].length))
+
+  const isPage = () => mode === "PAGE"
 
   const prev = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       refreshTableShow(pagePrevIdx(pIdx), rIdx)
       return
     }
@@ -490,7 +446,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   }
 
   const next = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       refreshTableShow(pageNextIdx(pIdx), rIdx)
       return
     }
@@ -498,7 +454,7 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
   }
 
   const logDetail = async (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+    if (isPage()) {
       return
     }
     if (cardShow.current) {
@@ -509,18 +465,35 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
     cardShow.current = !cardShow.current
   }
 
-  const yankHash = (pIdx: number, rIdx: number) => {
-    if (mode === "PAGE") {
+  const logSummaryShow = (pIdx: number, rIdx: number) => {
+    if (isPage()) {
       return
     }
-    const { commitHash } = data[pIdx][rIdx]
+    setSummary(true)
+    const { blue, yellow, mauve } = color
+    const { author, commitHash, humanDate } = dataPages[pIdx][rIdx]
+    setShow(`${blue.bold(author)} (${mauve(humanDate)}) ${yellow(commitHash)}`)
+
+    done({
+      ...config,
+      pageIndex: pIdx,
+      rowIndex: rIdx,
+      pageSize: pageSize ?? 5,
+    } as GitLogConfig)
+  }
+
+  const yankHash = (pIdx: number, rIdx: number) => {
+    if (isPage()) {
+      return
+    }
+    const { commitHash } = dataPages[pIdx][rIdx]
     clipboard.writeSync(commitHash)
     refreshTableShow(pIdx, rIdx, true)
   }
 
   useKeypress(async (key, rl) => {
     const isKey = (str: string) => key.name === str
-    if (isKey("space")) {
+    if (isSpaceKey(key)) {
       changeMode(mode)
     } else if (isKey("h")) {
       setKeyBar(!keyBar)
@@ -528,23 +501,31 @@ export default createPrompt<number, GitLogConfig>((config, done) => {
       next(pageIdx, rowIdx)
     } else if (isKey("k")) {
       prev(pageIdx, rowIdx)
-    } else if (isKey("return")) {
+    } else if (isEnterKey(key)) {
       await logDetail(pageIdx, rowIdx)
     } else if (isKey("y")) {
       yankHash(pageIdx, rowIdx)
+    } else if (isKey("s")) {
+      logSummaryShow(pageIdx, rowIdx)
     } else if (isKey("q")) {
-      done(-1)
+      exit()
     }
     rl.clearLine(0)
   })
-  const status = statusPrompt({
-    mode,
-    pageIdx,
-    rowIdx,
-    data,
-  })
-  if (keyBar) {
-    return `${show}${normalKeyPrompt()}\n${rowKeyPrompt()}\n${status}`
+  const status = () => {
+    const s = statusPrompt({
+      mode,
+      pageIdx,
+      rowIdx,
+      data: dataPages,
+    })
+    if (keyBar) {
+      return `${s}\n${normalKeyPrompt()}\n${rowKeyPrompt()}`
+    }
+    return s
   }
-  return `${show}${status}`
+  if (summary) {
+    return show
+  }
+  return `${show}${status()}`
 })

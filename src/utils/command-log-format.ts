@@ -1,5 +1,7 @@
 import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
+import { cleanFilePath, fileChangeInfo } from "./common-utils"
+import { terminal } from "./platform-utils"
 
 const { green, yellow, blue, teal, sky, mauve, red } = color
 
@@ -104,11 +106,7 @@ function _fastForwardBodySplit(strs: string[]) {
 function _fastForwardBodyFileFormat(fileList: string[]): string[] {
   return fileList.map((it) => {
     const [file, change] = it.split("|")
-    const spIdx = change.lastIndexOf(" ")
-    return `${mauve(file)}|${blue(change.substring(0, spIdx))} ${change
-      .substring(spIdx + 1)
-      .replaceAll("+", green("+"))
-      .replaceAll("-", red("-"))}`
+    return `${cleanFilePath(file, terminal.column)}|${fileChangeInfo(change)}`
   })
 }
 

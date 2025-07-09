@@ -1,5 +1,6 @@
 import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
+import { stringWidth } from "bun"
 
 const printErr = (str: string) => console.log(color.red(str))
 
@@ -21,6 +22,14 @@ const printCmdLog = (str: string) => {
   console.log(tmp)
 }
 
+async function errParse(e: unknown) {
+  if (e instanceof Error) {
+    printErr(e.message)
+    return
+  }
+  console.log(e)
+}
+
 function isEmpty<T>(param: string | T[] | undefined | null) {
   if (!param) {
     return true
@@ -40,4 +49,75 @@ function lines(str: string, spliter: string = "\n"): string[] {
     .filter((it) => it)
 }
 
-export { printCmdLog, printErr, isEmpty, lines }
+function cleanFilePath(
+  file: string,
+  widthLimit: number,
+  withColor: boolean = true,
+): string {
+  const rf = (str: string) => {
+    if (withColor) {
+      return color.mauve(str)
+    }
+    return str
+  }
+  const width = Math.floor(widthLimit * 0.75)
+  if (stringWidth(file) <= width) {
+    return rf(file)
+  }
+  const f = file
+    .trim()
+    .replace(".../", "")
+    .split("/")
+    .reverse()
+    .reduce((arr, it) => {
+      const r = `${arr.join("/")}/${it}/... `
+      if (stringWidth(r) <= width) {
+        arr.push(it)
+      }
+      return arr
+    }, [] as string[])
+    .reverse()
+    .join("/")
+  const str: string = ` .../${f}`
+  const n = Math.floor((width - stringWidth(str)) / stringWidth(" "))
+  const resStr = `${str}${" ".repeat(n)}  `
+  return rf(resStr)
+}
+
+function fileChangeInfo(str: string): string {
+  const { blue, green, red } = color
+  const idx = str.lastIndexOf(" ")
+  const number = str.substring(0, idx)
+  const cg = str.substring(idx)
+
+  const c1 = cg.match(/\+/g)
+  const c2 = cg.match(/-/g)
+
+  if (!c1 && !c2) {
+    return str.replaceAll(/\d+/g, (m) => blue(m))
+  }
+  if (c1 && c2) {
+    let fg = green("+++")
+    if (c1.length > c2.length) {
+      fg = `${green("++")}${red("-")}`
+    }
+    if (c1.length < c2.length) {
+      fg = `${green("+")}${red("--")}`
+    }
+    return `${blue(number)} ${fg}`
+  }
+  if (c1) {
+    return `${blue(number)} ${green("+++")}`
+  }
+  return `${blue(number)} ${red("---")}`
+}
+
+export {
+  printCmdLog,
+  printErr,
+  errParse,
+  isEmpty,
+  lines,
+  cleanFilePath,
+  fileChangeInfo,
+}
