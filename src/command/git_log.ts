@@ -5,11 +5,7 @@ import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
 import { color } from "../utils/color-utils"
-import {
-  errParse,
-  isEmpty,
-  lines
-} from "../utils/common-utils"
+import { errParse, isEmpty, lines } from "../utils/common-utils"
 import type { GitLog, GitLogConfig } from "../utils/git-log-prompt"
 import { default as page } from "../utils/git-log-prompt"
 import { exec } from "../utils/platform-utils"
@@ -103,7 +99,7 @@ new Command()
       let flg: boolean = false
       const f = await page(cf)
       const { data, pageIndex, rowIndex, pageSize } = f
-      const { commitHash } = data[(pageIndex! + 1) * pageSize! + rowIndex! + 1]
+      const { commitHash } = data[pageIndex! * pageSize! + rowIndex!]
       const diff = await exec(`git show ${commitHash}`)
       const spinner = ora(color.blue.bold("Summary...")).start()
       await client.stream({
