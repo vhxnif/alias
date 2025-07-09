@@ -351,6 +351,7 @@ function normalKeyPrompt(): string {
 function rowKeyPrompt(): string {
   const keys = groupKey([
     ["Yank", "y"],
+    ["Summary", "s"],
     ["Detail", "enter"],
   ])
   return `${groupKeyDesc("ROW")}: ${keys}`
