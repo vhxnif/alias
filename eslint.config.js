@@ -11,7 +11,7 @@ export default [
       semi: ['error', 'never'], // 禁用句末分号
     }
   },
-  { languageOptions: { globals: globals.browser } },
+  { languageOptions: { globals: globals } },
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
 ]
