@@ -9,7 +9,6 @@ import { color } from "../utils/color-utils"
 import { errParse, isEmpty, printErr } from "../utils/common-utils"
 import { editor, exec, execPrint } from "../utils/platform-utils"
 import { gitCommitMessage, gitDiffSummary } from "../utils/prompt"
-import { identifierToKeywordKind } from "typescript"
 
 const client: ILLMClient =
   process.env.ALIAS_TYPE === "ollama" ? new OllamaClient() : new OpenAiClient()
