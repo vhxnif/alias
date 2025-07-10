@@ -1,7 +1,5 @@
 import {
   createPrompt,
-  isEnterKey,
-  isSpaceKey,
   useEffect,
   useKeypress,
   useMemo,
@@ -480,23 +478,31 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   }
 
   useKeypress(async (key, rl) => {
-    const isKey = (str: string) => key.name === str
-    if (isSpaceKey(key)) {
-      changeMode(mode)
-    } else if (isKey("h")) {
-      setKeyBar(!keyBar)
-    } else if (isKey("j")) {
-      next(pageIdx, rowIdx)
-    } else if (isKey("k")) {
-      prev(pageIdx, rowIdx)
-    } else if (isEnterKey(key)) {
-      await logDetail(pageIdx, rowIdx)
-    } else if (isKey("y")) {
-      yankHash(pageIdx, rowIdx)
-    } else if (isKey("s")) {
-      logSummaryShow(pageIdx, rowIdx)
-    } else if (isKey("q")) {
-      exit()
+    switch (key.name) {
+      case "space":
+        changeMode(mode)
+        break
+      case "h":
+        setKeyBar(!keyBar)
+        break
+      case "j":
+        next(pageIdx, rowIdx)
+        break
+      case "k":
+        prev(pageIdx, rowIdx)
+        break
+      case "return":
+        await logDetail(pageIdx, rowIdx)
+        break
+      case "y":
+        yankHash(pageIdx, rowIdx)
+        break
+      case "s":
+        logSummaryShow(pageIdx, rowIdx)
+        break
+      case "q":
+        exit()
+        break
     }
     rl.clearLine(0)
   })
