@@ -34,7 +34,7 @@ export type GitLog = {
   humanDate: string
 }
 
-type Mode = "PAGE" | "ROW"
+type Mode = "PAG" | "ROW"
 export type GitLogKey = keyof GitLog
 
 export type GitLogConfig = {
@@ -333,7 +333,7 @@ function normalKeyPrompt(): string {
     ["Next", "j"],
     ["Quit", "q"],
   ])
-  return `${groupKeyDesc("NORMAL")}: ${keys}`
+  return `${groupKeyDesc("NOR")}: ${keys}`
 }
 
 function rowKeyPrompt(): string {
@@ -357,12 +357,12 @@ function statusPrompt({
   rowIdx: number
 }): string {
   const modeColor: Record<Mode, ChalkInstance> = {
-    PAGE: color.surface2.bold.bgHex(colorHex.green),
+    PAG: color.surface2.bold.bgHex(colorHex.green),
     ROW: color.surface2.bold.bgHex(colorHex.yellow),
   }
   const modeStatus = `${modeColor[mode](` ${mode} `)}`
   const help = `(Press${key("", "h")} to view the key mapping.)`
-  if (mode === "PAGE") {
+  if (mode === "PAG") {
     return `${key(modeStatus, `${pageIdx + 1}/${data.length}`)} ${help}`
   }
   return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
@@ -371,7 +371,7 @@ function statusPrompt({
 export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   const { data, pageIndex, rowIndex, pageSize } = config
   const dataPages = pages(data, pageSize ?? 5)
-  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAGE")
+  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAG")
   const [rowIdx, setRowIdx] = useState<number>(rowIndex ?? -1)
   const [pageIdx, setPageIdx] = useState<number>(pageIndex ?? 0)
   const [show, setShow] = useState<string>(
@@ -404,8 +404,8 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   }, [pageIdx, rowIdx])
 
   const changeMode = (m: Mode) => {
-    setMode(m === "PAGE" ? "ROW" : "PAGE")
-    const rIdx = m === "PAGE" ? 0 : -1
+    setMode(m === "PAG" ? "ROW" : "PAG")
+    const rIdx = m === "PAG" ? 0 : -1
     setRowIdx(rIdx)
     refreshTableShow(pageIdx, rIdx)
   }
@@ -423,7 +423,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   const rowNextIdx = (pIdx: number, rIdx: number) =>
     rowIdxMove(nextIdx(rIdx, dataPages[pIdx].length))
 
-  const isPage = () => mode === "PAGE"
+  const isPage = () => mode === "PAG"
 
   const prev = (pIdx: number, rIdx: number) => {
     if (isPage()) {
