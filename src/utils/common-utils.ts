@@ -2,6 +2,13 @@ import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
 import { stringWidth } from "bun"
 
+const reg: Record<string, RegExp> = {
+  curlyBraces: /\{([^{}]*)\}/g,
+  singleQuotes: /'([^']+)'/g,
+  doubleQuotes: /"([^"]+)"/g,
+  number: /\d+/g,
+}
+
 const printErr = (str: string) => console.log(color.red(str))
 
 const matchReplace = (str: string, reg: RegExp, color: ChalkInstance) =>
@@ -52,7 +59,7 @@ function lines(str: string, spliter: string = "\n"): string[] {
 function cleanFilePath(
   file: string,
   widthLimit: number,
-  withColor: boolean = true,
+  withColor: boolean = true
 ): string {
   const rf = (str: string) => {
     if (withColor) {
@@ -84,7 +91,7 @@ function cleanFilePath(
   return rf(resStr)
 }
 
-function fileChangeInfo(str: string): string {
+function renderFileChange(str: string): string {
   const { blue, green, red } = color
   const idx = str.lastIndexOf(" ")
   const number = str.substring(0, idx)
@@ -112,6 +119,33 @@ function fileChangeInfo(str: string): string {
   return `${blue(number)} ${red("---")}`
 }
 
+function isSummmaryLine(line: string) {
+  return /^\s*\d+\s+files?\s+changed(,\s*\d+\s+insertions?\(\+\))?(,\s*\d+\s+deletions?\(-\))?\s*/.test(
+    line
+  )
+}
+
+function renderSummaryLine(line: string) {
+  const { blue, yellow, green, red } = color
+  const mp: Record<string, ChalkInstance> = {
+    file: yellow,
+    files: yellow,
+    changed: yellow,
+    "+": green,
+    insertions: green,
+    insertion: green,
+    "-": red,
+    deletion: red,
+    deletions: red,
+  }
+  const ks = Object.keys(mp)
+    .map((it) => it.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|")
+  return line
+    .replace(reg.number, (m) => blue(m))
+    .replace(new RegExp(`\\b(${ks})\\b`, "g"), (m) => mp[m](m))
+}
+
 export {
   printCmdLog,
   printErr,
@@ -119,5 +153,8 @@ export {
   isEmpty,
   lines,
   cleanFilePath,
-  fileChangeInfo,
+  renderFileChange,
+  isSummmaryLine,
+  renderSummaryLine,
+  reg,
 }
