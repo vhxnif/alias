@@ -106,18 +106,28 @@ function _fastForwardBodySplit(strs: string[]) {
   }, [] as string[][])
 }
 
-function _fastForwardBodyFileFormat(fileList: string[]): string[] {
+function _fastForwardBodyFileFormat(fileList: string[] | undefined): string[] {
+  if (!fileList) {
+    return []
+  }
   return fileList.map((it) => {
     const [file, change] = it.split("|")
     return `${cleanFilePath(file, terminal.column)}|${renderFileChange(change)}`
   })
 }
 
-function _fastForwardBodyFileSummaryFormat(summaryList: string[]): string[] {
+function _fastForwardBodyFileSummaryFormat(
+  summaryList: string[] | undefined
+): string[] {
+  if (!summaryList) {
+    return []
+  }
   return [` ${renderSummaryLine(summaryList[0])}`]
 }
 
-function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
+function _fastForwardBodyFileDetailFormat(
+  deatilList: string[] | undefined
+): string[] {
   const typeFormat = (str: string) => {
     switch (str) {
       case "create":
@@ -127,6 +137,9 @@ function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
       default:
         return sky
     }
+  }
+  if (!deatilList) {
+    return []
   }
   return deatilList.reduce((arr, it) => {
     const cleanPath = (path: string) =>
