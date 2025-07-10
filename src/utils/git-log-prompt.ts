@@ -12,7 +12,13 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
-import { cleanFilePath, fileChangeInfo, isEmpty } from "./common-utils"
+import {
+  cleanFilePath,
+  isEmpty,
+  isSummmaryLine,
+  renderFileChange,
+  renderSummaryLine,
+} from "./common-utils"
 import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
 
@@ -199,28 +205,10 @@ function logSummaryInfo(line: string, arr: string[][]): boolean {
     }
     arr.push([str])
   }
-  const { blue, yellow, green, red } = color
-  const mp: Record<string, ChalkInstance> = {
-    file: yellow,
-    files: yellow,
-    changed: yellow,
-    "+": green,
-    insertions: green,
-    insertion: green,
-    "-": red,
-    deletion: red,
-    deletions: red,
+  if (isSummmaryLine(line)) {
+    return false
   }
-  const isSummaryLine = /^\s.*\b(\d+|file|files|changed)\b/g.test(line)
-  if (!isSummaryLine) return false
-  const ks = Object.keys(mp)
-    .map((it) => it.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|")
-  const coloredLine = line
-    .replace(/\d+/g, (m) => blue(m))
-    .replace(new RegExp(`\\b(${ks})\\b`, "g"), (m) => mp[m](m))
-
-  sm(coloredLine)
+  sm(renderSummaryLine(line))
   return true
 }
 
@@ -235,7 +223,7 @@ function logFileChangedListInfo(line: string, arr: string[][]): boolean {
   }
   if (line.startsWith(" ") && line.includes("|")) {
     const [file, change] = line.split("|")
-    fls(`${cleanFilePath(file, tableColumnWidth)}|${fileChangeInfo(change)}`)
+    fls(`${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`)
     return true
   }
   return false

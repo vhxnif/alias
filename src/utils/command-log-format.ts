@@ -1,6 +1,12 @@
 import type { ChalkInstance } from "chalk"
 import { color } from "./color-utils"
-import { cleanFilePath, fileChangeInfo } from "./common-utils"
+import {
+  cleanFilePath,
+  isSummmaryLine,
+  reg,
+  renderFileChange,
+  renderSummaryLine,
+} from "./common-utils"
 import { terminal } from "./platform-utils"
 
 const { green, yellow, blue, teal, sky, mauve, red } = color
@@ -11,10 +17,6 @@ type CommandLogFormat = {
   match: (lines: string[]) => boolean
   print: (lines: string[]) => void
 }
-
-const curlyBraces = /\{([^{}]*)\}/g
-const singleQuotes = /'([^']+)'/g
-const doubleQuotes = /"([^"]+)"/g
 
 function rpl(str: string, r: RegExp, color: ChalkInstance): string | undefined {
   const m = str.match(r)?.[0]
@@ -89,11 +91,12 @@ function _fastForwardBodySplit(strs: string[]) {
       }
       item.push(it)
     }
-    if (!notFileList && !it.includes("files changed,")) {
+    const summaryLine = isSummmaryLine(it)
+    if (!notFileList && !summaryLine) {
       tk(0)
       return arr
     }
-    if (it.includes("files changed,")) {
+    if (summaryLine) {
       notFileList = true
       tk(1)
       return arr
@@ -106,29 +109,12 @@ function _fastForwardBodySplit(strs: string[]) {
 function _fastForwardBodyFileFormat(fileList: string[]): string[] {
   return fileList.map((it) => {
     const [file, change] = it.split("|")
-    return `${cleanFilePath(file, terminal.column)}|${fileChangeInfo(change)}`
+    return `${cleanFilePath(file, terminal.column)}|${renderFileChange(change)}`
   })
 }
 
 function _fastForwardBodyFileSummaryFormat(summaryList: string[]): string[] {
-  const summaryStr = summaryList[0]
-    .split(", ")
-    .map((it) => {
-      const l = it.trim()
-      const sp = l.indexOf(" ")
-      const draw = (str: string) => {
-        if (str.includes("insertions")) {
-          return green(str)
-        }
-        if (str.includes("deletions")) {
-          return red(str)
-        }
-        return yellow(str)
-      }
-      return `${blue(l.substring(0, sp))}${draw(l.substring(sp))}`
-    })
-    .join(", ")
-  return [` ${summaryStr}`]
+  return [` ${renderSummaryLine(summaryList[0])}`]
 }
 
 function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
@@ -143,10 +129,12 @@ function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
     }
   }
   return deatilList.reduce((arr, it) => {
+    const cleanPath = (path: string) =>
+      cleanFilePath(path, terminal.column, false).trim()
     const renamePath = () => {
       // rename src/main/resources/icons/{grayStarOff.svg => starOffGray.svg}
       const path = it.substring(8)
-      const mts = path.match(curlyBraces)?.[0]
+      const mts = path.match(reg.curlyBraces)?.[0]
       if (!mts) {
         return blue(path)
       }
@@ -155,7 +143,7 @@ function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
         .split(mts)
         .map((it) => blue(it))
         .join(`${red(oldName)} => ${green(newName)}`)
-      return ` ${blue("rename")} ${ftPath}`
+      return ` ${blue("rename")} ${cleanPath(ftPath)}`
     }
     if (it.startsWith(" rename")) {
       arr.push(renamePath())
@@ -164,7 +152,9 @@ function _fastForwardBodyFileDetailFormat(deatilList: string[]): string[] {
       const parts = it.split(" ")
       const [ept, type, mode, filetype, file] = parts
       const cl = typeFormat(type)
-      arr.push([ept, cl.bold(type), mode, sky(filetype), cl(file)].join(" "))
+      arr.push(
+        [ept, cl.bold(type), mode, sky(filetype), cl(cleanPath(file))].join(" ")
+      )
     }
     return arr
   }, [] as string[])
@@ -192,6 +182,7 @@ function isFastForwardedPrompt(lines: string[]): boolean {
 }
 
 function printFastForwardedPrompt(lines: string[]): void {
+  const { singleQuotes, doubleQuotes } = reg
   const line1 = rpl(lines[0], singleQuotes, mauve) ?? lines[0]
   const line2 = rpl(lines[1], doubleQuotes, green) ?? lines[1]
   console.log(`${line1}\n${line2}`)
@@ -202,7 +193,7 @@ function isUpToDate(lines: string[]): boolean {
 }
 
 function printUpToDate(lines: string[]): void {
-  console.log(rpl(lines[0], singleQuotes, mauve) ?? lines[0])
+  console.log(rpl(lines[0], reg.singleQuotes, mauve) ?? lines[0])
 }
 
 const format: Record<CommandType, CommandLogFormat[]> = {
