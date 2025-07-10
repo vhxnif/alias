@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import ora from "ora"
 import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
@@ -8,6 +7,7 @@ import { color } from "../utils/color-utils"
 import { errParse, isEmpty, lines } from "../utils/common-utils"
 import type { GitLog, GitLogConfig } from "../utils/git-log-prompt"
 import { default as page } from "../utils/git-log-prompt"
+import { Spinner } from "../utils/ora-utils"
 import { exec } from "../utils/platform-utils"
 import { gitDiffSummary } from "../utils/prompt"
 
@@ -81,6 +81,19 @@ async function gitLogs(cmd: GitLogCommand): Promise<GitLog[]> {
 const client: ILLMClient =
   process.env.GIT_ALIAS === "ollama" ? new OllamaClient() : new OpenAiClient()
 
+const codeReview = async (commitHash: string) => {
+  const diff = await exec(`git show ${commitHash}`)
+  const spinner = new Spinner(color.blue.bold("Summary...")).start()
+  await client.stream({
+    messages: [client.system(gitDiffSummary), client.user(diff)],
+    model: client.defaultModel(),
+    f: async (str: string) => {
+      spinner.succeed(color.green.bold("Success."))
+      process.stdout.write(color.green(str))
+    },
+  })
+}
+
 new Command()
   .name("gl")
   .description("git log -n, defaule limit is 100")
@@ -96,23 +109,10 @@ new Command()
       throw Error(`Git Logs Missing.`)
     }
     const loopCall = async (cf: GitLogConfig) => {
-      let flg: boolean = false
       const f = await page(cf)
       const { data, pageIndex, rowIndex, pageSize } = f
       const { commitHash } = data[pageIndex! * pageSize! + rowIndex!]
-      const diff = await exec(`git show ${commitHash}`)
-      const spinner = ora(color.blue.bold("Summary...")).start()
-      await client.stream({
-        messages: [client.system(gitDiffSummary), client.user(diff)],
-        model: client.defaultModel(),
-        f: async (str: string) => {
-          if (!flg) {
-            spinner.succeed(color.green.bold("Success."))
-            flg = true
-          }
-          process.stdout.write(color.green(str))
-        },
-      })
+      await codeReview(commitHash)
       console.log()
       await loopCall(f)
     }
