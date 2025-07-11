@@ -430,11 +430,11 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     return void 0
   }, [pageIdx, rowIdx])
 
-  const cardShow = useRef(true)
+  const cardShow = useRef(false)
   const branchShow = useRef(false)
 
   useEffect(() => {
-    cardShow.current = true
+    cardShow.current = false
     branchShow.current = false
   }, [pageIdx, rowIdx])
 
@@ -480,7 +480,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     if (isPage()) {
       return
     }
-    if (cardShow.current) {
+    if (!cardShow.current) {
       setShow(rowCard(await logDetailInfo))
     } else {
       refreshTableShow(pIdx, rIdx)
@@ -490,6 +490,9 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
 
   const logDetailWithBranch = async () => {
     if (isPage()) {
+      return
+    }
+    if (!cardShow.current) {
       return
     }
     setShow(rowCard(await logDetailInfo, !branchShow.current))
