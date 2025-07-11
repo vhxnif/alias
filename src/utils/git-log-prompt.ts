@@ -19,6 +19,7 @@ import {
 } from "./common-utils"
 import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
+import { log } from "node:console"
 
 export type GitLog = {
   hash: string
@@ -152,7 +153,7 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
   )
 }
 
-function cardTableCofnig() {
+function cardTableConfig() {
   return {
     ...tableDefaultConfig,
     columns: [
@@ -164,14 +165,43 @@ function cardTableCofnig() {
   } as TableUserConfig
 }
 
-function rowCard(detailStr: string | undefined): string {
-  return table([[`${detailInfoFormat(detailStr)}`]], cardTableCofnig())
+type LogDetail = {
+  showDetail: string
+  branchDetail: string
+}
+function rowCard(
+  detailInfo: LogDetail | undefined,
+  branchShow: boolean = false
+): string {
+  if (!detailInfo) {
+    return table([[""]], cardTableConfig())
+  }
+  const { showDetail, branchDetail } = detailInfo
+  let display = detailInfoFormat(showDetail)
+  if (branchShow) {
+    const bfFormat = branchInfoFormat(branchDetail)
+    display = `${display}\n${color.mauve(
+      "-".repeat(tableColumnWidth)
+    )}\n${bfFormat}`
+  }
+  return table([[display]], cardTableConfig())
 }
 
-function detailInfoFormat(deatilStr: string | undefined): string {
-  if (!deatilStr) {
-    return ""
+function branchInfoFormat(branchInfo: string): string {
+  const { green, red, yellow } = color
+  const ft = (str: string) => {
+    if (str.startsWith("*")) {
+      return green(str)
+    }
+    if (str.startsWith("  remotes/")) {
+      return red(str)
+    }
+    return yellow(str)
   }
+  return branchInfo.split("\n").map(ft).join("\n")
+}
+
+function detailInfoFormat(deatilStr: string): string {
   const lines = deatilStr.split("\n")
   if (lines.length <= 4) {
     return ""
@@ -337,6 +367,7 @@ function normalKeyPrompt(): string {
 function rowKeyPrompt(): string {
   const keys = groupKey([
     ["Yank", "y"],
+    ["Branchs", "b"],
     ["Summary", "s"],
     ["Detail", "enter"],
   ])
@@ -387,18 +418,24 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     )
   }
 
-  const logDetailInfo = useMemo(async () => {
+  const logDetailInfo = useMemo<Promise<LogDetail | undefined>>(async () => {
     const commitHash: string | undefined =
       dataPages[pageIdx]?.[rowIdx]?.commitHash
     if (commitHash) {
-      return await exec(`git show --stat ${commitHash}`)
+      return {
+        showDetail: await exec(`git show --stat ${commitHash}`),
+        branchDetail: await exec(`git branch -a --contains ${commitHash}`),
+      }
     }
     return void 0
   }, [pageIdx, rowIdx])
 
   const cardShow = useRef(true)
+  const branchShow = useRef(false)
+
   useEffect(() => {
     cardShow.current = true
+    branchShow.current = false
   }, [pageIdx, rowIdx])
 
   const changeMode = (m: Mode) => {
@@ -451,6 +488,14 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     cardShow.current = !cardShow.current
   }
 
+  const logDetailWithBranch = async () => {
+    if (isPage()) {
+      return
+    }
+    setShow(rowCard(await logDetailInfo, !branchShow.current))
+    branchShow.current = !branchShow.current
+  }
+
   const logSummaryShow = (pIdx: number, rIdx: number) => {
     if (isPage()) {
       return
@@ -493,6 +538,9 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
         break
       case "return":
         await logDetail(pageIdx, rowIdx)
+        break
+      case "b":
+        await logDetailWithBranch()
         break
       case "y":
         yankHash(pageIdx, rowIdx)
