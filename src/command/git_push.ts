@@ -6,8 +6,9 @@ import { errParse } from "../utils/common-utils"
 new Command()
   .name("gps")
   .description("git push")
-  .action(async () => {
-    await execPrint("git push")
+  .argument('[remote]', 'remote name')
+  .action(async (remote) => {
+    await execPrint(`git push ${remote ?? 'origin'}`)
   })
   .parseAsync()
   .catch(errParse)
