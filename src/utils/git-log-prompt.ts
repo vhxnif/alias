@@ -203,7 +203,7 @@ function logSummaryInfo(line: string, arr: string[][]): boolean {
     }
     arr.push([str])
   }
-  if (isSummmaryLine(line)) {
+  if (!isSummmaryLine(line)) {
     return false
   }
   sm(renderSummaryLine(line))
