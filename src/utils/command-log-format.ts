@@ -18,12 +18,8 @@ type CommandLogFormat = {
   print: (lines: string[]) => void
 }
 
-function rpl(str: string, r: RegExp, color: ChalkInstance): string | undefined {
-  const m = str.match(r)?.[0]
-  if (m) {
-    return str.replace(m, color.bold(m))
-  }
-  return void 0
+function rpl(str: string, r: RegExp, color: ChalkInstance): string{
+  return str.replaceAll(r, m => color.bold(m))
 }
 
 /**
@@ -196,8 +192,8 @@ function isFastForwardedPrompt(lines: string[]): boolean {
 
 function printFastForwardedPrompt(lines: string[]): void {
   const { singleQuotes, doubleQuotes } = reg
-  const line1 = rpl(lines[0], singleQuotes, mauve) ?? lines[0]
-  const line2 = rpl(lines[1], doubleQuotes, green) ?? lines[1]
+  const line1 = rpl(lines[0], singleQuotes, mauve) 
+  const line2 = rpl(lines[1], doubleQuotes, green) 
   console.log(`${line1}\n${line2}`)
 }
 
@@ -206,7 +202,25 @@ function isUpToDate(lines: string[]): boolean {
 }
 
 function printUpToDate(lines: string[]): void {
-  console.log(rpl(lines[0], reg.singleQuotes, mauve) ?? lines[0])
+  console.log(rpl(lines[0], reg.singleQuotes, mauve)) 
+}
+
+function isSwitchCreateBranch(lines: string[]): boolean {
+  return lines[0].startsWith("Switched to a new branch")
+}
+
+function printSwitchCreateBranch(lines: string[]): void {
+  const line = rpl(lines[0], reg.singleQuotes, mauve) 
+  console.log(green(line))
+}
+
+function isSwitchTrackRemote(lines: string[]): boolean {
+  return lines[0].startsWith("branch ") && lines[0].includes(" set up to track")
+}
+
+function printSwitchTrackRemote(lines: string[]): void {
+  const line = rpl(lines[0], reg.singleQuotes, mauve) 
+  console.log(green(line))
 }
 
 const format: Record<CommandType, CommandLogFormat[]> = {
@@ -221,6 +235,14 @@ const format: Record<CommandType, CommandLogFormat[]> = {
     },
   ],
   "git-switch": [
+    {
+      match: isSwitchCreateBranch,
+      print: printSwitchCreateBranch,
+    },
+    {
+      match: isSwitchTrackRemote,
+      print: printSwitchTrackRemote,
+    },
     {
       match: isFastForwardedPrompt,
       print: printFastForwardedPrompt,
