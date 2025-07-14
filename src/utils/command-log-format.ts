@@ -1,5 +1,4 @@
-import type { ChalkInstance } from "chalk"
-import { color } from "./color-utils"
+import { display } from "./color-utils"
 import {
   cleanFilePath,
   isSummmaryLine,
@@ -9,17 +8,18 @@ import {
 } from "./common-utils"
 import { terminal } from "./platform-utils"
 
-const { green, yellow, blue, teal, sky, mauve, red } = color
-
-type CommandType = "git-pull" | "git-switch" 
+type CommandType = "git-pull" | "git-switch"
 
 type CommandLogFormat = {
   match: (lines: string[]) => boolean
   print: (lines: string[]) => void
 }
 
-function rpl(str: string, r: RegExp, color: ChalkInstance): string {
-  return str.replaceAll(r, (m) => color.bold(m))
+function highlight(str: string): string {
+  const { singleQuotes, doubleQuotes } = reg
+  let result = str.replaceAll(singleQuotes, (m) => display.highlight.bold(m))
+  result = result.replaceAll(doubleQuotes, (m) => display.highlight.bold(m))
+  return result
 }
 
 /**
@@ -68,8 +68,10 @@ function _fastForwardTitle(strs: string[]): string[] {
   const [update, hashMove] = strs[0].split(" ")
   const [oldHash, newHash] = hashMove.split("..")
   return [
-    `${blue.bold(update)} ${teal(oldHash)}..${sky(newHash)}`,
-    yellow(strs[1]),
+    `${display.note.bold(update)} ${display.highlight(oldHash)}..${display.note(
+      newHash,
+    )}`,
+    display.warning(strs[1]),
   ]
 }
 
@@ -113,7 +115,7 @@ function _fastForwardBodyFileFormat(fileList: string[] | undefined): string[] {
 }
 
 function _fastForwardBodyFileSummaryFormat(
-  summaryList: string[] | undefined
+  summaryList: string[] | undefined,
 ): string[] {
   if (!summaryList) {
     return []
@@ -122,16 +124,16 @@ function _fastForwardBodyFileSummaryFormat(
 }
 
 function _fastForwardBodyFileDetailFormat(
-  deatilList: string[] | undefined
+  deatilList: string[] | undefined,
 ): string[] {
   const typeFormat = (str: string) => {
     switch (str) {
       case "create":
-        return green
+        return display.success
       case "delete":
-        return red
+        return display.error
       default:
-        return sky
+        return display.note
     }
   }
   if (!deatilList) {
@@ -145,14 +147,14 @@ function _fastForwardBodyFileDetailFormat(
       const path = it.substring(8)
       const mts = path.match(reg.curlyBraces)?.[0]
       if (!mts) {
-        return blue(path)
+        return display.note(path)
       }
       const [oldName, newName] = mts.split(" => ")
       const ftPath = path
         .split(mts)
-        .map((it) => blue(it))
-        .join(`${red(oldName)} => ${green(newName)}`)
-      return ` ${blue("rename")} ${cleanPath(ftPath)}`
+        .map((it) => display.note(it))
+        .join(`${display.error(oldName)} => ${display.success(newName)}`)
+      return ` ${display.note("rename")} ${cleanPath(ftPath)}`
     }
     if (it.startsWith(" rename")) {
       arr.push(renamePath())
@@ -162,7 +164,13 @@ function _fastForwardBodyFileDetailFormat(
       const [ept, type, mode, filetype, file] = parts
       const cl = typeFormat(type)
       arr.push(
-        [ept, cl.bold(type), mode, sky(filetype), cl(cleanPath(file))].join(" ")
+        [
+          ept,
+          cl.bold(type),
+          mode,
+          display.note(filetype),
+          cl(cleanPath(file)),
+        ].join(" "),
       )
     }
     return arr
@@ -174,7 +182,7 @@ function isAlreadyUpToDate(lines: string[]): boolean {
 }
 
 function printAlreadyUpToDateLog(lines: string[]): void {
-  console.log(green(lines[0]))
+  console.log(display.success(lines[0]))
 }
 
 /*
@@ -191,10 +199,7 @@ function isFastForwardedPrompt(lines: string[]): boolean {
 }
 
 function printFastForwardedPrompt(lines: string[]): void {
-  const { singleQuotes, doubleQuotes } = reg
-  const line1 = rpl(lines[0], singleQuotes, mauve)
-  const line2 = rpl(lines[1], doubleQuotes, green)
-  console.log(`${line1}\n${line2}`)
+  console.log(`${highlight(lines[0])}\n${highlight(lines[1])}`)
 }
 
 function isUpToDate(lines: string[]): boolean {
@@ -202,7 +207,7 @@ function isUpToDate(lines: string[]): boolean {
 }
 
 function printUpToDate(lines: string[]): void {
-  console.log(rpl(lines[0], reg.singleQuotes, mauve))
+  console.log(highlight(lines[0]))
 }
 
 function isSwitchCreateBranch(lines: string[]): boolean {
@@ -210,8 +215,7 @@ function isSwitchCreateBranch(lines: string[]): boolean {
 }
 
 function printSwitchCreateBranch(lines: string[]): void {
-  const line = rpl(lines[0], reg.singleQuotes, mauve)
-  console.log(green(line))
+  console.log(display.success(highlight(lines[0])))
 }
 
 function isSwitchTrackRemote(lines: string[]): boolean {
@@ -219,8 +223,7 @@ function isSwitchTrackRemote(lines: string[]): boolean {
 }
 
 function printSwitchTrackRemote(lines: string[]): void {
-  const line = rpl(lines[0], reg.singleQuotes, mauve)
-  console.log(green(line))
+  console.log(display.success(highlight(lines[0])))
 }
 
 const format: Record<CommandType, CommandLogFormat[]> = {
@@ -265,7 +268,7 @@ function logcmd(log: string, type: CommandType): void {
     }
   })
   if (!foramtMatched) {
-    console.log(color.yellow(log))
+    console.log(display.warning(log))
   }
 }
 
