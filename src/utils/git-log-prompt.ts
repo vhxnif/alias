@@ -1,7 +1,5 @@
 import {
   createPrompt,
-  isEnterKey,
-  isSpaceKey,
   useEffect,
   useKeypress,
   useMemo,
@@ -12,9 +10,16 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, tableTitle } from "./color-utils"
-import { cleanFilePath, fileChangeInfo, isEmpty } from "./common-utils"
+import {
+  cleanFilePath,
+  isEmpty,
+  isSummmaryLine,
+  renderFileChange,
+  renderSummaryLine,
+} from "./common-utils"
 import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
+import { log } from "node:console"
 
 export type GitLog = {
   hash: string
@@ -28,7 +33,7 @@ export type GitLog = {
   humanDate: string
 }
 
-type Mode = "PAGE" | "ROW"
+type Mode = "PAG" | "ROW"
 export type GitLogKey = keyof GitLog
 
 export type GitLogConfig = {
@@ -148,7 +153,7 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
   )
 }
 
-function cardTableCofnig() {
+function cardTableConfig() {
   return {
     ...tableDefaultConfig,
     columns: [
@@ -160,14 +165,43 @@ function cardTableCofnig() {
   } as TableUserConfig
 }
 
-function rowCard(detailStr: string | undefined): string {
-  return table([[`${detailInfoFormat(detailStr)}`]], cardTableCofnig())
+type LogDetail = {
+  showDetail: string
+  branchDetail: string
+}
+function rowCard(
+  detailInfo: LogDetail | undefined,
+  branchShow: boolean = false
+): string {
+  if (!detailInfo) {
+    return table([[""]], cardTableConfig())
+  }
+  const { showDetail, branchDetail } = detailInfo
+  let display = detailInfoFormat(showDetail)
+  if (branchShow) {
+    const bfFormat = branchInfoFormat(branchDetail)
+    display = `${display}\n${color.mauve(
+      "-".repeat(tableColumnWidth)
+    )}\n${bfFormat}`
+  }
+  return table([[display]], cardTableConfig())
 }
 
-function detailInfoFormat(deatilStr: string | undefined): string {
-  if (!deatilStr) {
-    return ""
+function branchInfoFormat(branchInfo: string): string {
+  const { green, red, yellow } = color
+  const ft = (str: string) => {
+    if (str.startsWith("*")) {
+      return green(str)
+    }
+    if (str.startsWith("  remotes/")) {
+      return red(str)
+    }
+    return yellow(str)
   }
+  return branchInfo.split("\n").map(ft).join("\n")
+}
+
+function detailInfoFormat(deatilStr: string): string {
   const lines = deatilStr.split("\n")
   if (lines.length <= 4) {
     return ""
@@ -199,28 +233,10 @@ function logSummaryInfo(line: string, arr: string[][]): boolean {
     }
     arr.push([str])
   }
-  const { blue, yellow, green, red } = color
-  const mp: Record<string, ChalkInstance> = {
-    file: yellow,
-    files: yellow,
-    changed: yellow,
-    "+": green,
-    insertions: green,
-    insertion: green,
-    "-": red,
-    deletion: red,
-    deletions: red,
+  if (!isSummmaryLine(line)) {
+    return false
   }
-  const isSummaryLine = /^\s.*\b(\d+|file|files|changed)\b/g.test(line)
-  if (!isSummaryLine) return false
-  const ks = Object.keys(mp)
-    .map((it) => it.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("|")
-  const coloredLine = line
-    .replace(/\d+/g, (m) => blue(m))
-    .replace(new RegExp(`\\b(${ks})\\b`, "g"), (m) => mp[m](m))
-
-  sm(coloredLine)
+  sm(renderSummaryLine(line))
   return true
 }
 
@@ -235,7 +251,7 @@ function logFileChangedListInfo(line: string, arr: string[][]): boolean {
   }
   if (line.startsWith(" ") && line.includes("|")) {
     const [file, change] = line.split("|")
-    fls(`${cleanFilePath(file, tableColumnWidth)}|${fileChangeInfo(change)}`)
+    fls(`${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`)
     return true
   }
   return false
@@ -345,12 +361,13 @@ function normalKeyPrompt(): string {
     ["Next", "j"],
     ["Quit", "q"],
   ])
-  return `${groupKeyDesc("NORMAL")}: ${keys}`
+  return `${groupKeyDesc("NOR")}: ${keys}`
 }
 
 function rowKeyPrompt(): string {
   const keys = groupKey([
     ["Yank", "y"],
+    ["Branchs", "b"],
     ["Summary", "s"],
     ["Detail", "enter"],
   ])
@@ -369,12 +386,12 @@ function statusPrompt({
   rowIdx: number
 }): string {
   const modeColor: Record<Mode, ChalkInstance> = {
-    PAGE: color.surface2.bold.bgHex(colorHex.green),
+    PAG: color.surface2.bold.bgHex(colorHex.green),
     ROW: color.surface2.bold.bgHex(colorHex.yellow),
   }
   const modeStatus = `${modeColor[mode](` ${mode} `)}`
   const help = `(Press${key("", "h")} to view the key mapping.)`
-  if (mode === "PAGE") {
+  if (mode === "PAG") {
     return `${key(modeStatus, `${pageIdx + 1}/${data.length}`)} ${help}`
   }
   return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
@@ -383,7 +400,7 @@ function statusPrompt({
 export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   const { data, pageIndex, rowIndex, pageSize } = config
   const dataPages = pages(data, pageSize ?? 5)
-  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAGE")
+  const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAG")
   const [rowIdx, setRowIdx] = useState<number>(rowIndex ?? -1)
   const [pageIdx, setPageIdx] = useState<number>(pageIndex ?? 0)
   const [show, setShow] = useState<string>(
@@ -401,23 +418,29 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     )
   }
 
-  const logDetailInfo = useMemo(async () => {
+  const logDetailInfo = useMemo<Promise<LogDetail | undefined>>(async () => {
     const commitHash: string | undefined =
       dataPages[pageIdx]?.[rowIdx]?.commitHash
     if (commitHash) {
-      return await exec(`git show --stat ${commitHash}`)
+      return {
+        showDetail: await exec(`git show --stat ${commitHash}`),
+        branchDetail: await exec(`git branch -a --contains ${commitHash}`),
+      }
     }
     return void 0
   }, [pageIdx, rowIdx])
 
-  const cardShow = useRef(true)
+  const cardShow = useRef(false)
+  const branchShow = useRef(false)
+
   useEffect(() => {
-    cardShow.current = true
+    cardShow.current = false
+    branchShow.current = false
   }, [pageIdx, rowIdx])
 
   const changeMode = (m: Mode) => {
-    setMode(m === "PAGE" ? "ROW" : "PAGE")
-    const rIdx = m === "PAGE" ? 0 : -1
+    setMode(m === "PAG" ? "ROW" : "PAG")
+    const rIdx = m === "PAG" ? 0 : -1
     setRowIdx(rIdx)
     refreshTableShow(pageIdx, rIdx)
   }
@@ -435,7 +458,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   const rowNextIdx = (pIdx: number, rIdx: number) =>
     rowIdxMove(nextIdx(rIdx, dataPages[pIdx].length))
 
-  const isPage = () => mode === "PAGE"
+  const isPage = () => mode === "PAG"
 
   const prev = (pIdx: number, rIdx: number) => {
     if (isPage()) {
@@ -457,12 +480,23 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     if (isPage()) {
       return
     }
-    if (cardShow.current) {
+    if (!cardShow.current) {
       setShow(rowCard(await logDetailInfo))
     } else {
       refreshTableShow(pIdx, rIdx)
     }
     cardShow.current = !cardShow.current
+  }
+
+  const logDetailWithBranch = async () => {
+    if (isPage()) {
+      return
+    }
+    if (!cardShow.current) {
+      return
+    }
+    setShow(rowCard(await logDetailInfo, !branchShow.current))
+    branchShow.current = !branchShow.current
   }
 
   const logSummaryShow = (pIdx: number, rIdx: number) => {
@@ -492,23 +526,34 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   }
 
   useKeypress(async (key, rl) => {
-    const isKey = (str: string) => key.name === str
-    if (isSpaceKey(key)) {
-      changeMode(mode)
-    } else if (isKey("h")) {
-      setKeyBar(!keyBar)
-    } else if (isKey("j")) {
-      next(pageIdx, rowIdx)
-    } else if (isKey("k")) {
-      prev(pageIdx, rowIdx)
-    } else if (isEnterKey(key)) {
-      await logDetail(pageIdx, rowIdx)
-    } else if (isKey("y")) {
-      yankHash(pageIdx, rowIdx)
-    } else if (isKey("s")) {
-      logSummaryShow(pageIdx, rowIdx)
-    } else if (isKey("q")) {
-      exit()
+    switch (key.name) {
+      case "space":
+        changeMode(mode)
+        break
+      case "h":
+        setKeyBar(!keyBar)
+        break
+      case "j":
+        next(pageIdx, rowIdx)
+        break
+      case "k":
+        prev(pageIdx, rowIdx)
+        break
+      case "return":
+        await logDetail(pageIdx, rowIdx)
+        break
+      case "b":
+        await logDetailWithBranch()
+        break
+      case "y":
+        yankHash(pageIdx, rowIdx)
+        break
+      case "s":
+        logSummaryShow(pageIdx, rowIdx)
+        break
+      case "q":
+        exit()
+        break
     }
     rl.clearLine(0)
   })

@@ -42,7 +42,7 @@ new Command()
     await branchAction({
       name,
       command: async (b: Branch) => {
-        await gitBranchMerge(b)
+        console.log(await gitBranchMerge(b))
       },
       branchSort: (branchs: Branch[]) => sortBranch(branchs, name),
     })

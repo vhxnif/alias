@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
-import ora, { type Ora } from "ora"
 import { fileStaged, fileStatus } from "../action/file-command"
 import type { ILLMClient } from "../llm/llm-types"
 import { OllamaClient } from "../llm/ollama-client"
 import { OpenAiClient } from "../llm/open-ai-client"
 import { color } from "../utils/color-utils"
 import { errParse, isEmpty, printErr } from "../utils/common-utils"
+import { Spinner } from "../utils/ora-utils"
 import { editor, exec, execPrint } from "../utils/platform-utils"
 import { gitCommitMessage, gitDiffSummary } from "../utils/prompt"
 
@@ -31,28 +31,28 @@ async function commitWithMessage() {
 
 async function codeReview() {
   await stagedDiffAnalyzing(async (diff, spinner) => {
-    let flg: boolean = false
     await client.stream({
       messages: [client.system(gitDiffSummary), client.user(diff)],
       model: client.defaultModel(),
       f: async (str: string) => {
-        if (!flg) {
-          spinner.succeed(color.green.bold("Success."))
-          flg = true
-        }
+        spinner.succeed(color.green.bold("Success."))
         process.stdout.write(color.green(str))
       },
     })
   })
 }
 
-type DiffAnalysisCallback = (diff: string, spinner: Ora) => Promise<void>
+type DiffAnalysisCallback = (diff: string, spinner: Spinner) => Promise<void>
 async function stagedDiffAnalyzing(
   callback: DiffAnalysisCallback
 ): Promise<void> {
-  const spinner = ora(color.blue.bold("Extract Git Diff...")).start()
+  const spinner = new Spinner(color.blue.bold("Extract Git Diff...")).start()
   const diff = await exec(`git diff --staged`)
-  spinner.text = color.mauve.bold("Analyzing...")
+  if (isEmpty(diff)) {
+    spinner.stop()
+    throw new Error(`There are not changes.`)
+  }
+  spinner.changeText(color.mauve.bold("Analyzing..."))
   await callback(diff, spinner)
 }
 

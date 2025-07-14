@@ -11,6 +11,8 @@ import { tryExec } from "../utils/platform-utils"
 import { rule } from "../store/branch-history-store"
 import { logcmd } from "../utils/command-log-format"
 import { errParse } from "../utils/common-utils"
+import { Spinner } from "../utils/ora-utils"
+import { color } from "../utils/color-utils"
 
 const bs = await branchHistory()
 
@@ -23,9 +25,12 @@ new Command()
     if (name && !force) {
       const branch = bs.query(name).sort((a, b) => rule(b) - rule(a))[0]
       if (branch) {
+        const spinner = new Spinner("Switching branch...").start()
         const { name, frequency } = branch
         try {
-          logcmd(await tryExec(`git switch ${name}`), "git-switch")
+          const result = await tryExec(`git switch ${name}`)
+          spinner.succeed(`Switched to branch: ${color.mauve.bold(name)}`)
+          logcmd(result, "git-switch")
           bs.update(name, frequency)
           return
         } catch (err: unknown) {
@@ -33,14 +38,27 @@ new Command()
           if (msg.startsWith("fatal: invalid reference:")) {
             bs.delete(name)
           }
+        } finally {
+          spinner.stop()
         }
       }
     }
     await branchAction({
       name,
       command: async (branch: Branch) => {
-        bs.addOrUpdate(branch.name)
-        logcmd(await gitSwitch({ branch }), "git-switch")
+        const spinner = new Spinner(
+          `Switching to ${color.mauve.bold(branch.name)}...`
+        ).start()
+        try {
+          bs.addOrUpdate(branch.name)
+          const result = await gitSwitch({ branch })
+          spinner.succeed(
+            `Switched to branch: ${color.mauve.bold(branch.name)}`
+          )
+          logcmd(result, "git-switch")
+        } finally {
+          spinner.stop()
+        }
       },
     })
   })
