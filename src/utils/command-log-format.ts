@@ -11,15 +11,15 @@ import { terminal } from "./platform-utils"
 
 const { green, yellow, blue, teal, sky, mauve, red } = color
 
-type CommandType = "git-pull" | "git-switch"
+type CommandType = "git-pull" | "git-switch" 
 
 type CommandLogFormat = {
   match: (lines: string[]) => boolean
   print: (lines: string[]) => void
 }
 
-function rpl(str: string, r: RegExp, color: ChalkInstance): string{
-  return str.replaceAll(r, m => color.bold(m))
+function rpl(str: string, r: RegExp, color: ChalkInstance): string {
+  return str.replaceAll(r, (m) => color.bold(m))
 }
 
 /**
@@ -192,8 +192,8 @@ function isFastForwardedPrompt(lines: string[]): boolean {
 
 function printFastForwardedPrompt(lines: string[]): void {
   const { singleQuotes, doubleQuotes } = reg
-  const line1 = rpl(lines[0], singleQuotes, mauve) 
-  const line2 = rpl(lines[1], doubleQuotes, green) 
+  const line1 = rpl(lines[0], singleQuotes, mauve)
+  const line2 = rpl(lines[1], doubleQuotes, green)
   console.log(`${line1}\n${line2}`)
 }
 
@@ -202,7 +202,7 @@ function isUpToDate(lines: string[]): boolean {
 }
 
 function printUpToDate(lines: string[]): void {
-  console.log(rpl(lines[0], reg.singleQuotes, mauve)) 
+  console.log(rpl(lines[0], reg.singleQuotes, mauve))
 }
 
 function isSwitchCreateBranch(lines: string[]): boolean {
@@ -210,7 +210,7 @@ function isSwitchCreateBranch(lines: string[]): boolean {
 }
 
 function printSwitchCreateBranch(lines: string[]): void {
-  const line = rpl(lines[0], reg.singleQuotes, mauve) 
+  const line = rpl(lines[0], reg.singleQuotes, mauve)
   console.log(green(line))
 }
 
@@ -219,7 +219,7 @@ function isSwitchTrackRemote(lines: string[]): boolean {
 }
 
 function printSwitchTrackRemote(lines: string[]): void {
-  const line = rpl(lines[0], reg.singleQuotes, mauve) 
+  const line = rpl(lines[0], reg.singleQuotes, mauve)
   console.log(green(line))
 }
 

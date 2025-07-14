@@ -11,7 +11,7 @@ new Command()
     await branchAction({
       name,
       command: async (it) => {
-        await gitBranchRebase(it)
+        console.log(await gitBranchRebase(it))
       },
     })
   })
