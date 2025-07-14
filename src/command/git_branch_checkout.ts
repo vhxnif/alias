@@ -22,42 +22,45 @@ new Command()
   .argument("[name]", "barnch name", "")
   .option("-f, --force")
   .action(async (name, { force }) => {
-    const spinner = new Spinner("Switching branch...").start()
-    try {
-      if (name && !force) {
-        const branch = bs.query(name).sort((a, b) => rule(b) - rule(a))[0]
-        if (branch) {
-          const { name, frequency } = branch
-          try {
-            const result = await tryExec(`git switch ${name}`)
-            spinner.succeed(`Switched to branch: ${color.mauve.bold(name)}`)
-            logcmd(result, "git-switch")
-            bs.update(name, frequency)
-            return
-          } catch (err: unknown) {
-            const msg = (err as ShellError).stderr.toString()
-            if (msg.startsWith("fatal: invalid reference:")) {
-              bs.delete(name)
-            }
-            spinner.changeText("Searching branches...")
+    if (name && !force) {
+      const branch = bs.query(name).sort((a, b) => rule(b) - rule(a))[0]
+      if (branch) {
+        const spinner = new Spinner("Switching branch...").start()
+        const { name, frequency } = branch
+        try {
+          const result = await tryExec(`git switch ${name}`)
+          spinner.succeed(`Switched to branch: ${color.mauve.bold(name)}`)
+          logcmd(result, "git-switch")
+          bs.update(name, frequency)
+          return
+        } catch (err: unknown) {
+          const msg = (err as ShellError).stderr.toString()
+          if (msg.startsWith("fatal: invalid reference:")) {
+            bs.delete(name)
           }
+        } finally {
+          spinner.stop()
         }
       }
-      
-      await branchAction({
-        name,
-        command: async (branch: Branch) => {
-          spinner.changeText(`Switching to ${color.mauve.bold(branch.name)}...`)
+    }
+    await branchAction({
+      name,
+      command: async (branch: Branch) => {
+        const spinner = new Spinner(
+          `Switching to ${color.mauve.bold(branch.name)}...`
+        ).start()
+        try {
           bs.addOrUpdate(branch.name)
           const result = await gitSwitch({ branch })
-          spinner.succeed(`Switched to branch: ${color.mauve.bold(branch.name)}`)
+          spinner.succeed(
+            `Switched to branch: ${color.mauve.bold(branch.name)}`
+          )
           logcmd(result, "git-switch")
-        },
-      })
-    } catch (error) {
-      spinner.stop()
-      throw error
-    }
+        } finally {
+          spinner.stop()
+        }
+      },
+    })
   })
   .parseAsync()
   .catch(errParse)
