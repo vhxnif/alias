@@ -14,7 +14,7 @@ new Command()
     await singleFileAction({
       message: "Select Rollback Files:",
       command: async (it) => {
-        await gitFileCheckout(it)
+        console.log(await gitFileCheckout(it))
       },
       fileFilter: fileChanged,
     })
