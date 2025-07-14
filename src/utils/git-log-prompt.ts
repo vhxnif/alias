@@ -9,7 +9,7 @@ import {
 import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
-import { color, colorHex, tableTitle } from "./color-utils"
+import { color, colorHex, display, tableTitle } from "./color-utils"
 import {
   cleanFilePath,
   isEmpty,
@@ -19,7 +19,6 @@ import {
 } from "./common-utils"
 import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
-import { log } from "node:console"
 
 export type GitLog = {
   hash: string
@@ -165,6 +164,95 @@ function cardTableConfig() {
   } as TableUserConfig
 }
 
+// --- Refactored Detail Formatting Start ---
+
+function _formatDetailHeader(headerLines: string[]): string {
+  const { yellow, blue, sky, green, mauve, teal } = color
+  const formattedLines: string[] = []
+  headerLines.forEach((line) => {
+    if (line.startsWith("commit")) {
+      const hash = yellow(line.split(" ")[1])
+      formattedLines.push(`${blue.bold("Commit:")} ${hash}`)
+    } else if (line.startsWith("Merge:")) {
+      const [_, oldHash, newHash] = line.split(" ")
+      formattedLines.push(
+        `${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`
+      )
+    } else if (line.startsWith("Author:")) {
+      const [_, author, email] = line.split(" ")
+      formattedLines.push(
+        `${blue.bold("Author:")} ${mauve(author)} <${green(
+          email.substring(1, email.length - 1)
+        )}>`
+      )
+    } else if (line.startsWith("Date:")) {
+      const [_, date] = line.split("Date:")
+      formattedLines.push(`${blue.bold("Date:")} ${teal(date)}`)
+    }
+  })
+  return formattedLines.join("\n")
+}
+
+function _formatDetailMessage(messageLines: string[]): string {
+  const singleQuotes = /'([^']+)'/g
+  const doubleQuotes = /"([^"]+)"/g
+  return messageLines
+    .map((line) => {
+      if (line.startsWith("    ")) {
+        return line
+          .replaceAll(singleQuotes, (m) => display.important.bold(m))
+          .replaceAll(doubleQuotes, (m) => display.important.bold(m))
+      }
+      return line // Keep blank lines
+    })
+    .join("\n")
+}
+
+function _formatDetailFileStats(statLines: string[]): string {
+  const formattedLines: string[] = []
+  statLines.forEach((line) => {
+    if (line.startsWith(" ") && line.includes("|")) {
+      const [file, change] = line.split("|")
+      formattedLines.push(
+        `${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`
+      )
+    } else if (isSummmaryLine(line)) {
+      formattedLines.push(renderSummaryLine(line))
+    }
+  })
+  return formattedLines.join("\n")
+}
+
+function formatDetail(detailStr: string): string {
+  const lines = detailStr.split("\n")
+  if (lines.length <= 4) return "" // Guard for empty/short input
+
+  const headerEndIndex = lines.findIndex((line) => line.trim() === "")
+  const statsStartIndex = lines.findIndex(
+    (line) =>
+      (line.startsWith(" ") && line.includes("|")) || isSummmaryLine(line)
+  )
+
+  const headerLines = lines.slice(0, headerEndIndex)
+
+  const messageLines = lines.slice(
+    headerEndIndex,
+    statsStartIndex === -1 ? undefined : statsStartIndex
+  )
+
+  const statLines = statsStartIndex === -1 ? [] : lines.slice(statsStartIndex)
+
+  const formattedHeader = _formatDetailHeader(headerLines)
+  const formattedMessage = _formatDetailMessage(messageLines)
+  const formattedFileStats = _formatDetailFileStats(statLines)
+
+  return [formattedHeader, formattedMessage, formattedFileStats]
+    .filter(Boolean)
+    .join("\n")
+}
+
+// --- Refactored Detail Formatting End ---
+
 type LogDetail = {
   showDetail: string
   branchDetail: string
@@ -177,7 +265,7 @@ function rowCard(
     return table([[""]], cardTableConfig())
   }
   const { showDetail, branchDetail } = detailInfo
-  let display = detailInfoFormat(showDetail)
+  let display = formatDetail(showDetail) // <-- Using new refactored function
   if (branchShow) {
     const bfFormat = branchInfoFormat(branchDetail)
     display = `${display}\n${color.mauve(
@@ -201,129 +289,19 @@ function branchInfoFormat(branchInfo: string): string {
   return branchInfo.split("\n").map(ft).join("\n")
 }
 
-function detailInfoFormat(deatilStr: string): string {
-  const lines = deatilStr.split("\n")
-  if (lines.length <= 4) {
-    return ""
-  }
-  return lines
-    .reduce((arr, it, idx) => {
-      if (logTitleInfo(it, idx, arr)) {
-        return arr
-      }
-      if (logMessageAndBodyInfo(it, arr)) {
-        return arr
-      }
-      if (logFileChangedListInfo(it, arr)) {
-        return arr
-      }
-      logSummaryInfo(it, arr)
-      return arr
-    }, [] as string[][])
-    .map((it) => it.join("\n"))
-    .join("\n")
-}
-
-function logSummaryInfo(line: string, arr: string[][]): boolean {
-  const sm = (str: string) => {
-    const s = arr[3]
-    if (s) {
-      s.push(str)
-      return
-    }
-    arr.push([str])
-  }
-  if (!isSummmaryLine(line)) {
-    return false
-  }
-  sm(renderSummaryLine(line))
-  return true
-}
-
-function logFileChangedListInfo(line: string, arr: string[][]): boolean {
-  const fls = (str: string) => {
-    const fl = arr[2]
-    if (fl) {
-      fl.push(str)
-      return
-    }
-    arr.push([str])
-  }
-  if (line.startsWith(" ") && line.includes("|")) {
-    const [file, change] = line.split("|")
-    fls(`${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`)
-    return true
-  }
-  return false
-}
-
-function logTitleInfo(line: string, idx: number, arr: string[][]) {
-  const { yellow, blue, sky, green, mauve, teal } = color
-  if (line.startsWith("commit") && idx === 0) {
-    const hash = yellow(line.split(" ")[1])
-    arr.push([`${blue.bold("Commit:")} ${hash}`])
-    return true
-  }
-  if (line.startsWith("Merge:")) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [_, oldHash, newHash] = line.split(" ")
-    arr[0].push(`${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`)
-    return true
-  }
-  if (line.startsWith("Author:")) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [_, author, email] = line.split(" ")
-    arr[0].push(
-      `${blue.bold("Author:")} ${mauve(author)} <${green(
-        email.substring(1, email.length - 1)
-      )}>`
-    )
-    return true
-  }
-  if (line.startsWith("Date:")) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [_, date] = line.split("Date:")
-    arr[0].push(`${blue.bold("Date:")} ${teal(date)}`)
-    return true
-  }
-  return false
-}
-
-function logMessageAndBodyInfo(line: string, arr: string[][]): boolean {
-  const msgPush = (str: string) => {
-    const messages = arr[1]
-    if (!messages) {
-      arr.push([str])
-      return
-    }
-    messages.push(str)
-  }
-  if (isEmpty(line)) {
-    msgPush(line)
-    return true
-  }
-  if (line.startsWith("    ")) {
-    const singleQuotes = /'([^']+)'/g
-    const doubleQuotes = /"([^"]+)"/g
-    const str = line
-      .replaceAll(singleQuotes, (m) => color.pink.bold(m))
-      .replaceAll(doubleQuotes, (m) => color.pink.bold(m))
-    msgPush(str)
-    return true
-  }
-  return false
-}
-
 function pages(data: GitLog[], pageSize: number): GitLog[][] {
-  return data.reduce((arr, it) => {
-    const last = arr[arr.length - 1]
-    if (!last || last.length === pageSize) {
-      arr.push([it])
-    } else {
-      last.push(it)
-    }
-    return arr
-  }, [] as GitLog[][])
+  return data.reduce(
+    (arr, it) => {
+      const last = arr[arr.length - 1]
+      if (!last || last.length === pageSize) {
+        arr.push([it])
+      } else {
+        last.push(it)
+      }
+      return arr
+    },
+    [] as GitLog[][]
+  )
 }
 
 function prevIdx(idx: number): number {
@@ -342,36 +320,83 @@ function nextIdx(idx: number, length: number): number {
   return next > length - 1 ? idx : next
 }
 
+type KeyHelp = { desc: string; key: string }
+
+function _formatKeyLine(desc: string, key: string, width: number): string {
+  const keyStr = color.teal(`<${key}>`)
+  const descStr = color.blue(desc)
+  const paddingWidth =
+    width - Bun.stringWidth(descStr) - Bun.stringWidth(keyStr)
+  const padding = ".".repeat(paddingWidth > 0 ? paddingWidth : 0)
+  return `${descStr}${color.surface2(padding)}${keyStr}`
+}
+
+function _createPlaceholder(width: number): string {
+  return color.surface2("· ".repeat(width / 2).trim().padEnd(width))
+}
+
+function _renderKeyHelp(normalKeys: KeyHelp[], rowKeys: KeyHelp[]): string {
+  const calcWidth = (keys: KeyHelp[]) =>
+    maxWidth(keys.map((k) => `${k.desc} <${k.key}>`)) + 4
+
+  const normalColWidth = calcWidth(normalKeys)
+  const rowColWidth = calcWidth(rowKeys)
+  const maxRows = Math.max(normalKeys.length, rowKeys.length)
+
+  const helpLines: string[] = []
+  const normalTitle = "NORMAL MODE".padEnd(normalColWidth)
+  const rowTitle = "ROW MODE".padEnd(rowColWidth)
+
+  helpLines.push(
+    ` ${
+      display.highlight.bold(normalTitle)
+    }   ${
+      display.highlight.bold(rowTitle)
+    }`
+  )
+  helpLines.push(
+    ` ${color.mauve("-".repeat(normalColWidth))}   ${color.mauve(
+      "-".repeat(rowColWidth)
+    )}`
+  )
+
+  for (let i = 0; i < maxRows; i++) {
+    const normalKey = normalKeys[i]
+    const normalLine = normalKey
+      ? _formatKeyLine(normalKey.desc, normalKey.key, normalColWidth)
+      : _createPlaceholder(normalColWidth)
+
+    const rowKey = rowKeys[i]
+    const rowLine = rowKey
+      ? _formatKeyLine(rowKey.desc, rowKey.key, rowColWidth)
+      : _createPlaceholder(rowColWidth)
+
+    helpLines.push(` ${normalLine}   ${rowLine}`)
+  }
+
+  return `\n${helpLines.join("\n")}`
+}
+
+function normalKeyMap(): KeyHelp[] {
+  return [
+    { desc: "Switch Mode", key: "space" },
+    { desc: "Up", key: "k" },
+    { desc: "Down", key: "j" },
+    { desc: "Quit", key: "q" },
+  ]
+}
+
+function rowKeyMap(): KeyHelp[] {
+  return [
+    { desc: "Yank Hash", key: "y" },
+    { desc: "Show Branches", key: "b" },
+    { desc: "AI Summary", key: "s" },
+    { desc: "View Details", key: "enter" },
+  ]
+}
+
 function key(desc: string, value: string): string {
   return `${desc} ${color.teal(`<${value}>`)}`
-}
-
-function groupKey(keys: [string, string][]): string {
-  return keys.map((it) => key(it[0], it[1])).join(", ")
-}
-
-function groupKeyDesc(desc: string): string {
-  return color.blue.bold(desc)
-}
-
-function normalKeyPrompt(): string {
-  const keys = groupKey([
-    ["Mode", "space"],
-    ["Prev", "k"],
-    ["Next", "j"],
-    ["Quit", "q"],
-  ])
-  return `${groupKeyDesc("NOR")}: ${keys}`
-}
-
-function rowKeyPrompt(): string {
-  const keys = groupKey([
-    ["Yank", "y"],
-    ["Branchs", "b"],
-    ["Summary", "s"],
-    ["Detail", "enter"],
-  ])
-  return `${groupKeyDesc("ROW")}: ${keys}`
 }
 
 function statusPrompt({
@@ -565,7 +590,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
       data: dataPages,
     })
     if (keyBar) {
-      return `${s}\n${normalKeyPrompt()}\n${rowKeyPrompt()}`
+      return `${s}${_renderKeyHelp(normalKeyMap(), rowKeyMap())}`
     }
     return s
   }

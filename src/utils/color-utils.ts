@@ -72,9 +72,11 @@ const display = {
   note: color.sky,
   important: color.pink,
   tip: color.green,
+  success: color.green,
   caution: color.mauve,
   warning: color.peach,
   error: color.red,
+  highlight: color.mauve,
 }
 
 function tableTitle(strs: string[]) {
