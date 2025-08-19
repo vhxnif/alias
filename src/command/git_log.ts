@@ -6,10 +6,12 @@ import { OpenAiClient } from "../llm/open-ai-client"
 import { color } from "../utils/color-utils"
 import { errParse, isEmpty, lines } from "../utils/common-utils"
 import type { GitLog, GitLogConfig } from "../utils/git-log-prompt"
-import { default as page } from "../utils/git-log-prompt"
+import { default as gitLog } from "../utils/git-log-prompt"
 import { Spinner } from "../utils/ora-utils"
-import { exec } from "../utils/platform-utils"
+import { exec, resetTTY } from "../utils/platform-utils"
 import { gitDiffSummary } from "../utils/prompt"
+import { gitDiffParse } from "../utils/git-diff-format"
+import { default as page } from "../utils/page-prompt"
 
 type GitLogCommand = {
   limit?: number
@@ -94,6 +96,14 @@ const codeReview = async (commitHash: string) => {
   })
 }
 
+const commitDiff = async (hash: string) => {
+  const res = await exec(`git log -1 ${hash} --pretty=%P`)
+  const pHash = res.split(" ")[0]
+  const diffStr = await exec(`git diff ${pHash} ${hash}`)
+  gitDiffParse(diffStr).forEach((it) => console.log(it))
+  // await page({ data: diffShows, quiteClear: true })
+}
+
 new Command()
   .name("gl")
   .description("git log -n, defaule limit is 100")
@@ -109,12 +119,17 @@ new Command()
       throw Error(`Git Logs Missing.`)
     }
     const loopCall = async (cf: GitLogConfig) => {
-      const f = await page(cf)
-      const { data, pageIndex, rowIndex, pageSize } = f
+      const { type, config } = await gitLog(cf)
+      const { data, pageIndex, rowIndex, pageSize } = config
       const { commitHash } = data[pageIndex! * pageSize! + rowIndex!]
-      await codeReview(commitHash)
-      console.log()
-      await loopCall(f)
+      if (type === "AI_SUMMARY") {
+        await codeReview(commitHash)
+        console.log()
+      }
+      if (type === "COMMIT_DIFF") {
+        await commitDiff(commitHash)
+      }
+      await loopCall(config)
     }
     await loopCall({ data: logs })
   })

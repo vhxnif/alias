@@ -6,8 +6,8 @@ import {
   singleFileAction,
   type File,
 } from "../action/file-command"
-import { diffFormat } from "../utils/diff-utils"
-import { errParse } from "../utils/common-utils"
+import { errParse, isEmpty } from "../utils/common-utils"
+import { gitDiffParse } from "../utils/git-diff-format"
 
 new Command()
   .name("gfc")
@@ -18,7 +18,10 @@ new Command()
       fileFilter: fileChanged,
       command: async (f: File) => {
         const res = await gitFileDiff(f)
-        console.log(diffFormat(res))
+        if (isEmpty(res.trim())) {
+          throw Error(`File [${f.filePath}] Not Trace.`)
+        }
+        gitDiffParse(res).forEach((it) => console.log(it))
       },
     })
   })
