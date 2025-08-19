@@ -58,11 +58,14 @@ const colorHex: Record<ColorKey, string> = {
 }
 
 function toColor(): Record<ColorKey, ChalkInstance> {
-  return Object.keys(colorHex).reduce((obj, it) => {
-    const k = it as ColorKey
-    obj[k] = hex(colorHex[k])
-    return obj
-  }, {} as Record<ColorKey, ChalkInstance>)
+  return Object.keys(colorHex).reduce(
+    (obj, it) => {
+      const k = it as ColorKey
+      obj[k] = hex(colorHex[k])
+      return obj
+    },
+    {} as Record<ColorKey, ChalkInstance>,
+  )
 }
 
 const color = toColor()
@@ -83,4 +86,4 @@ function tableTitle(strs: string[]) {
   return strs.map((it) => color.green.bold(it))
 }
 
-export { colorHex, color, display, tableTitle }
+export { colorHex, color, display, tableTitle, type ColorKey }
