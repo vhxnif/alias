@@ -42,7 +42,7 @@ export type GitLogConfig = {
   rowIndex?: number
 }
 
-export type GitLogReturnType = "AI_SUMMARY" | "COMMIT_DIFF"
+export type GitLogReturnType = "AI_SUMMARY" | "COMMIT_DIFF" | "CLEAR"
 
 export type GitLogReturn = {
   config: GitLogConfig
@@ -390,6 +390,7 @@ function normalKeyMap(): KeyHelp[] {
     { desc: "Up", key: "k" },
     { desc: "Down", key: "j" },
     { desc: "Quit", key: "q" },
+    { desc: "Clear", key: "c" },
   ]
 }
 
@@ -573,6 +574,19 @@ export default createPrompt<GitLogReturn, GitLogConfig>((config, done) => {
     })
   }
 
+  const clearScreen = (pIdx: number, rIdx: number) => {
+    console.clear()
+    done({
+      type: "CLEAR",
+      config: {
+        ...config,
+        pageIndex: pIdx,
+        rowIndex: rIdx,
+        pageSize: pageSize ?? 5,
+      } as GitLogConfig,
+    })
+  }
+
   const yankHash = (pIdx: number, rIdx: number) => {
     if (isPage()) {
       return
@@ -611,6 +625,9 @@ export default createPrompt<GitLogReturn, GitLogConfig>((config, done) => {
         break
       case "d":
         commitDiffShow(pageIdx, rowIdx)
+        break
+      case "c":
+        clearScreen(pageIdx, rowIdx)
         break
       case "q":
         exit()
