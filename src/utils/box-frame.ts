@@ -51,6 +51,6 @@ export class BoxFrame {
   }
 
   private colorTitle() {
-    return color[this.config.bolderColor](this.title)
+    return color[this.config.tilteColor](this.title)
   }
 }
