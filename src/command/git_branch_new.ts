@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
 import { branchAction, gitSwitch, type Branch } from "../action/branch-command"
-import { errParse, printCmdLog } from "../utils/common-utils"
+import { errParse } from "../utils/common-utils"
 import { logcmd } from "../utils/command-log-format"
 
 new Command()
@@ -15,16 +15,19 @@ new Command()
         name,
         all: true,
         command: async (branch: Branch) => {
-          logcmd(await gitSwitch({ branch, args: ["-t"] }), 'git-switch') 
+          logcmd(await gitSwitch({ branch, args: ["-t"] }), "git-switch")
         },
         branchFilter: (branchs: Branch[]) =>
           branchs.filter(
-            (it) => it.name.startsWith("remotes") && !it.name.includes("->")
+            (it) => it.name.startsWith("remotes") && !it.name.includes("->"),
           ),
       })
       return
     }
-    logcmd(await gitSwitch({ branch: { name, isCurrent: true }, args: ["-c"] }), 'git-switch')
+    logcmd(
+      await gitSwitch({ branch: { name, isCurrent: true }, args: ["-c"] }),
+      "git-switch",
+    )
   })
   .parseAsync()
   .catch(errParse)
