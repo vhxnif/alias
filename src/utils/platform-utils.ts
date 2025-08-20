@@ -68,7 +68,7 @@ function platformConfigPath(): string {
 
 function configPath(): string | undefined {
   const pcp = platformConfigPath()
-  const appName = "git_alias"
+  const appName = "git-alias"
   const appConfig = `${pcp}${path.sep}${appName}`
   try {
     accessSync(pcp, constants.F_OK)
