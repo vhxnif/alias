@@ -42,6 +42,13 @@ export type GitLogConfig = {
   rowIndex?: number
 }
 
+export type GitLogReturnType = "AI_SUMMARY" | "COMMIT_DIFF"
+
+export type GitLogReturn = {
+  config: GitLogConfig
+  type: GitLogReturnType
+}
+
 function gitLogValueFilter(logs: GitLog[], columns: GitLogKey[]): string[] {
   return logs.reduce((res, it) => {
     Object.entries(it)
@@ -93,7 +100,7 @@ function tableConfig(tableData: GitLog[]): TableUserConfig {
 function gitLogToTableData(
   logs: GitLog[],
   selectedIdx: number,
-  yanked?: boolean
+  yanked?: boolean,
 ): string[][] {
   return logs.map((l, idx) => {
     const { hash, author, message, time, date, ref } = l
@@ -148,7 +155,7 @@ function pageTable({ logs, selectedIdx, yanked }: PageTableArg): string {
       tableTitle(["Hash\nDate", "Author\nTime", "Message\nRef"]),
       ...gitLogToTableData(logs, selectedIdx, yanked),
     ],
-    tableConfig(logs)
+    tableConfig(logs),
   )
 }
 
@@ -176,14 +183,14 @@ function _formatDetailHeader(headerLines: string[]): string {
     } else if (line.startsWith("Merge:")) {
       const [_, oldHash, newHash] = line.split(" ")
       formattedLines.push(
-        `${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`
+        `${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`,
       )
     } else if (line.startsWith("Author:")) {
       const [_, author, email] = line.split(" ")
       formattedLines.push(
         `${blue.bold("Author:")} ${mauve(author)} <${green(
-          email.substring(1, email.length - 1)
-        )}>`
+          email.substring(1, email.length - 1),
+        )}>`,
       )
     } else if (line.startsWith("Date:")) {
       const [_, date] = line.split("Date:")
@@ -214,7 +221,7 @@ function _formatDetailFileStats(statLines: string[]): string {
     if (line.startsWith(" ") && line.includes("|")) {
       const [file, change] = line.split("|")
       formattedLines.push(
-        `${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`
+        `${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`,
       )
     } else if (isSummmaryLine(line)) {
       formattedLines.push(renderSummaryLine(line))
@@ -230,14 +237,14 @@ function formatDetail(detailStr: string): string {
   const headerEndIndex = lines.findIndex((line) => line.trim() === "")
   const statsStartIndex = lines.findIndex(
     (line) =>
-      (line.startsWith(" ") && line.includes("|")) || isSummmaryLine(line)
+      (line.startsWith(" ") && line.includes("|")) || isSummmaryLine(line),
   )
 
   const headerLines = lines.slice(0, headerEndIndex)
 
   const messageLines = lines.slice(
     headerEndIndex,
-    statsStartIndex === -1 ? undefined : statsStartIndex
+    statsStartIndex === -1 ? undefined : statsStartIndex,
   )
 
   const statLines = statsStartIndex === -1 ? [] : lines.slice(statsStartIndex)
@@ -259,7 +266,7 @@ type LogDetail = {
 }
 function rowCard(
   detailInfo: LogDetail | undefined,
-  branchShow: boolean = false
+  branchShow: boolean = false,
 ): string {
   if (!detailInfo) {
     return table([[""]], cardTableConfig())
@@ -269,7 +276,7 @@ function rowCard(
   if (branchShow) {
     const bfFormat = branchInfoFormat(branchDetail)
     display = `${display}\n${color.mauve(
-      "-".repeat(tableColumnWidth)
+      "-".repeat(tableColumnWidth),
     )}\n${bfFormat}`
   }
   return table([[display]], cardTableConfig())
@@ -290,18 +297,15 @@ function branchInfoFormat(branchInfo: string): string {
 }
 
 function pages(data: GitLog[], pageSize: number): GitLog[][] {
-  return data.reduce(
-    (arr, it) => {
-      const last = arr[arr.length - 1]
-      if (!last || last.length === pageSize) {
-        arr.push([it])
-      } else {
-        last.push(it)
-      }
-      return arr
-    },
-    [] as GitLog[][]
-  )
+  return data.reduce((arr, it) => {
+    const last = arr[arr.length - 1]
+    if (!last || last.length === pageSize) {
+      arr.push([it])
+    } else {
+      last.push(it)
+    }
+    return arr
+  }, [] as GitLog[][])
 }
 
 function prevIdx(idx: number): number {
@@ -332,7 +336,12 @@ function _formatKeyLine(desc: string, key: string, width: number): string {
 }
 
 function _createPlaceholder(width: number): string {
-  return color.surface2("· ".repeat(width / 2).trim().padEnd(width))
+  return color.surface2(
+    "· "
+      .repeat(width / 2)
+      .trim()
+      .padEnd(width),
+  )
 }
 
 function _renderKeyHelp(normalKeys: KeyHelp[], rowKeys: KeyHelp[]): string {
@@ -348,16 +357,14 @@ function _renderKeyHelp(normalKeys: KeyHelp[], rowKeys: KeyHelp[]): string {
   const rowTitle = "ROW MODE".padEnd(rowColWidth)
 
   helpLines.push(
-    ` ${
-      display.highlight.bold(normalTitle)
-    }   ${
-      display.highlight.bold(rowTitle)
-    }`
+    ` ${display.highlight.bold(normalTitle)}   ${display.highlight.bold(
+      rowTitle,
+    )}`,
   )
   helpLines.push(
     ` ${color.mauve("-".repeat(normalColWidth))}   ${color.mauve(
-      "-".repeat(rowColWidth)
-    )}`
+      "-".repeat(rowColWidth),
+    )}`,
   )
 
   for (let i = 0; i < maxRows; i++) {
@@ -391,6 +398,7 @@ function rowKeyMap(): KeyHelp[] {
     { desc: "Yank Hash", key: "y" },
     { desc: "Show Branches", key: "b" },
     { desc: "AI Summary", key: "s" },
+    { desc: "Commit Diff", key: "d" },
     { desc: "View Details", key: "enter" },
   ]
 }
@@ -422,16 +430,17 @@ function statusPrompt({
   return `${key(modeStatus, `${rowIdx + 1}/${data[pageIdx].length}`)} ${help}`
 }
 
-export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
+export default createPrompt<GitLogReturn, GitLogConfig>((config, done) => {
   const { data, pageIndex, rowIndex, pageSize } = config
   const dataPages = pages(data, pageSize ?? 5)
   const [mode, setMode] = useState<Mode>(rowIndex !== void 0 ? "ROW" : "PAG")
   const [rowIdx, setRowIdx] = useState<number>(rowIndex ?? -1)
   const [pageIdx, setPageIdx] = useState<number>(pageIndex ?? 0)
   const [show, setShow] = useState<string>(
-    pageTable({ logs: dataPages[pageIdx], selectedIdx: rowIdx })
+    pageTable({ logs: dataPages[pageIdx], selectedIdx: rowIdx }),
   )
   const [summary, setSummary] = useState(false)
+  const [diffShow, setDiffShow] = useState(false)
   const [keyBar, setKeyBar] = useState<boolean>(false)
   const refreshTableShow = (pIdx: number, rIdx: number, yanked?: boolean) => {
     setShow(
@@ -439,7 +448,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
         logs: dataPages[pIdx],
         selectedIdx: rIdx,
         yanked,
-      })
+      }),
     )
   }
 
@@ -532,13 +541,36 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     const { blue, yellow, mauve } = color
     const { author, commitHash, humanDate } = dataPages[pIdx][rIdx]
     setShow(`${blue.bold(author)} (${mauve(humanDate)}) ${yellow(commitHash)}`)
-
+    console.clear()
     done({
-      ...config,
-      pageIndex: pIdx,
-      rowIndex: rIdx,
-      pageSize: pageSize ?? 5,
-    } as GitLogConfig)
+      type: "AI_SUMMARY",
+      config: {
+        ...config,
+        pageIndex: pIdx,
+        rowIndex: rIdx,
+        pageSize: pageSize ?? 5,
+      } as GitLogConfig,
+    })
+  }
+
+  const commitDiffShow = (pIdx: number, rIdx: number) => {
+    if (isPage()) {
+      return
+    }
+    setDiffShow(true)
+    const { blue, yellow, mauve } = color
+    const { author, commitHash, humanDate } = dataPages[pIdx][rIdx]
+    setShow(`${blue.bold(author)} (${mauve(humanDate)}) ${yellow(commitHash)}`)
+    console.clear()
+    done({
+      type: "COMMIT_DIFF",
+      config: {
+        ...config,
+        pageIndex: pIdx,
+        rowIndex: rIdx,
+        pageSize: pageSize ?? 5,
+      } as GitLogConfig,
+    })
   }
 
   const yankHash = (pIdx: number, rIdx: number) => {
@@ -551,6 +583,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
   }
 
   useKeypress(async (key, rl) => {
+    rl.clearLine(0)
     switch (key.name) {
       case "space":
         changeMode(mode)
@@ -576,11 +609,13 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
       case "s":
         logSummaryShow(pageIdx, rowIdx)
         break
+      case "d":
+        commitDiffShow(pageIdx, rowIdx)
+        break
       case "q":
         exit()
         break
     }
-    rl.clearLine(0)
   })
   const status = () => {
     const s = statusPrompt({
@@ -594,7 +629,7 @@ export default createPrompt<GitLogConfig, GitLogConfig>((config, done) => {
     }
     return s
   }
-  if (summary) {
+  if (summary || diffShow) {
     return show
   }
   return `${show}${status()}`

@@ -4,7 +4,9 @@ import os from "node:os"
 import path from "path"
 import { printCmdLog, printErr } from "./common-utils"
 
-const terminal: Record<string, number> = {
+type TerminalKey = "column" | "row"
+
+const terminal: Record<TerminalKey, number> = {
   column: process.stdout.columns,
   row: process.stdout.rows,
 }
@@ -97,4 +99,5 @@ export {
   platform,
   terminal,
   tryExec,
+  type TerminalKey,
 }

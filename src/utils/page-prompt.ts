@@ -11,11 +11,13 @@ type ConfirmConfig = {
   data: string[]
   start?: number
   theme?: PartialDeep<Theme>
+  quiteClear?: boolean
 }
 
 export default createPrompt<number, ConfirmConfig>((config, done) => {
-  const { data, start } = config
+  const { data, start, quiteClear } = config
   const [value, setValue] = useState(start ?? 0)
+  const [quit, setQuit] = useState(false)
   const theme = makeTheme(config.theme)
   const prevIdx = (idx: number) => {
     const prev = idx - 1
@@ -26,6 +28,7 @@ export default createPrompt<number, ConfirmConfig>((config, done) => {
     return next > data.length - 1 ? idx : next
   }
   useKeypress((key, rl) => {
+    rl.clearLine(0)
     const show = (f: (i: number) => number) => {
       setValue(f(value))
     }
@@ -35,14 +38,17 @@ export default createPrompt<number, ConfirmConfig>((config, done) => {
     } else if (isKey("j")) {
       show(nextIdx)
     } else if (isKey("q")) {
+      setQuit(true)
       done(-1)
     }
-    rl.clearLine(0)
   })
   const key = (str: string) => theme.style.key(str)
   const currPage = `${value + 1}/${data.length}`
   const message = `Page ${key(currPage)}, Prev ${key("k")}, Next ${key(
-    "j"
+    "j",
   )}, Exit ${key("q")}`
+  if (quit && quiteClear) {
+    return ""
+  }
   return `${data[value]}${message}`
 })
