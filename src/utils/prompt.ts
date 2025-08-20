@@ -37,6 +37,9 @@ export const gitCommitMessage = `
    - Replace direct integer comparison with Objects.equals() for noticeType checks in SasNewServiceImpl.
    - Ensure null safety when comparing noticeType values.
    </example>
+   <example>
+   docs: refine git prompt templates, remove unused line, fix formatting
+   </example>
 </examples>
 `
 
