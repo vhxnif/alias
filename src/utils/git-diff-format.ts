@@ -99,20 +99,21 @@ function lineShowParse(
   l: string,
   oldStart: number,
   newStart: number,
-  noWidth: number,
+  oldNoWidth: number,
+  newNoWidth: number,
 ) {
   const type = lineChangeType(l)
   const { noSeq: oldNoSeq, rowNo: oldRowNo } = rowNoParse(
     type,
     "ADD",
     oldStart,
-    noWidth,
+    oldNoWidth,
   )
   const { noSeq: newNoSeq, rowNo: newRowNo } = rowNoParse(
     type,
     "REMOVE",
     newStart,
-    noWidth,
+    newNoWidth,
   )
   const lineShow: LineShow = {
     change: type,
@@ -146,14 +147,14 @@ function rowNoParse(
   if (type === notExpect) {
     return {
       noSeq,
-      rowNo: "".padEnd(width),
+      rowNo: "".padStart(width, " "),
     }
   }
   const rowNo = noSeq + 1
   const rowNoStr = `${rowNo}`
   return {
     noSeq: rowNo,
-    rowNo: rowNoStr.padEnd(width - rowNoStr.length),
+    rowNo: rowNoStr.padStart(width, " "),
   }
 }
 
@@ -165,10 +166,6 @@ function partShowParse(p: PartChange): PartShow {
     newContextCount,
     lines: lineStrs,
   } = p
-  const noWidth = Math.max(
-    `${oldStartLineNo + oldContextCount}`.length,
-    `${newStartLineNo + newContextCount}`.length,
-  )
   let oldStart = oldStartLineNo - 1
   let newStart = newStartLineNo - 1
   const lines = lineStrs.map((l) => {
@@ -176,7 +173,8 @@ function partShowParse(p: PartChange): PartShow {
       l,
       oldStart,
       newStart,
-      noWidth,
+      `${oldStartLineNo + oldContextCount}`.length,
+      `${newStartLineNo + newContextCount}`.length,
     )
     oldStart = oldNoSeq
     newStart = newNoSeq
