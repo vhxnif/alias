@@ -1,24 +1,30 @@
 = alias
 
-Some Command Alias
+Some commonly used simplified git commands
 
-To install dependencies:
-
+.Download dependencies:
 [source, bash]
 ----
 bun install
 ----
 
-bun link:
-
+.Link to local
 [source, bash]
 ----
-bun run build && bun link
+bun run link
+----
+
+.Remove the link locally
+[source, bash]
+----
+bun run unlink
 ----
 
 .env
 [source, bash]
 ----
+# editor
+export EDITOR = 'vi'
 # openai api
 export ALIAS_BASE_URL = <base url>
 export ALIAS_API_KEY = <api key>
@@ -119,4 +125,3 @@ Execute ``git branch -D <branch>``.
 Show Tag Deatils. +
 Execute ``git show  <tag>``
 |===
-
