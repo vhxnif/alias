@@ -2,6 +2,7 @@ import type { ColorKey } from "./color-utils"
 import { cleanFilePath } from "./common-utils"
 import { terminal } from "./platform-utils"
 import { color } from "./color-utils"
+import { BoxFrame } from "./box-frame"
 
 // git diff str parse
 
@@ -87,6 +88,8 @@ function parseGitDiffStr(gitDiffStr: string): GitDiff[] {
 function mapToDiffShow(gitDiffs: GitDiff[]): DiffShow[] {
   return gitDiffs.map((it) => {
     const fileName = cleanFilePath(it.name, terminal.column, false)
+      .trim()
+      .replace("//", "/")
     const parts = it.parts.map(partShowParse)
     return {
       fileName,
@@ -186,22 +189,14 @@ function partShowParse(p: PartChange): PartShow {
 }
 
 type DiffParseColor = {
-  tableLine: ColorKey
-  titleName: ColorKey
   oldRowNo: ColorKey
   newRowNo: ColorKey
   text: ColorKey
 }
 
 function diffShowStr(diff: DiffShow, colorName: DiffParseColor): string {
-  const { tableLine, titleName, oldRowNo, newRowNo, text } = colorName
+  const { oldRowNo, newRowNo, text } = colorName
   const { fileName, parts } = diff
-  const width = terminal.column
-  const topLeft = `╭`
-  const topRight = `╮`
-  const bottomLeft = `╰`
-  const bottomRight = `╯`
-  const p = (l: number) => `─`.repeat(l)
   const partStrs = parts.map((it) => {
     const { lines } = it
     const arr: string[] = []
@@ -221,14 +216,7 @@ function diffShowStr(diff: DiffShow, colorName: DiffParseColor): string {
     )
     return arr.join("\n")
   })
-  const topLeftWidth = Math.floor((width - 2 - fileName.length) / 2)
-  const topRightWidth = width - 2 - topLeftWidth - fileName.length
-  const topLeftLine = `${topLeft}${p(topLeftWidth)}`
-  const topRightLine = `${p(topRightWidth)}${topRight}`
-  const lineColor = color[tableLine]
-  const topLine = `${lineColor(topLeftLine)}${color[titleName](fileName)}${lineColor(topRightLine)}`
-  const bottoomLine = lineColor(`${bottomLeft}${p(width - 2)}${bottomRight}`)
-  return `${topLine}\n${partStrs.join(`\n ${lineColor(p(width - 2))} \n`)}\n${bottoomLine}`
+  return new BoxFrame(fileName, partStrs).text()
 }
 
 function gitDiffParse(str: string, color?: DiffParseColor) {
@@ -238,8 +226,6 @@ function gitDiffParse(str: string, color?: DiffParseColor) {
     diffShowStr(
       it,
       color ?? {
-        tableLine: "overlay2",
-        titleName: "mauve",
         oldRowNo: "yellow",
         newRowNo: "sky",
         text: "subtext1",
