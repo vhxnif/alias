@@ -2,7 +2,7 @@ import { color, type ColorKey } from "./color-utils"
 import { terminal } from "./platform-utils"
 
 export type BoxFrameConfig = {
-  tilteColor: ColorKey
+  titleColor: ColorKey
   bolderColor: ColorKey
   terminalColumn?: number
 }
@@ -22,7 +22,7 @@ export class BoxFrame {
     this.title = title
     this.content = content
     this.config = config ?? {
-      tilteColor: "mauve",
+      titleColor: "mauve",
       bolderColor: "overlay2",
     }
   }
@@ -51,6 +51,6 @@ export class BoxFrame {
   }
 
   private colorTitle() {
-    return color[this.config.tilteColor](this.title)
+    return color[this.config.titleColor](this.title)
   }
 }
