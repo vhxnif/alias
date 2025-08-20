@@ -1,5 +1,5 @@
 {
-  "name": "alias",
+  "name": "@vhxnif/git-alias",
   "version": "0.1.0",
   "description": "command alias",
   "author": "vhxnif",
@@ -39,7 +39,9 @@
     "gh": "out/git_help.js"
   },
   "scripts": {
-    "build": "bun build ./src/command/*.ts --outdir ./out --target bun --minify --sourcemap=linked --entry-naming [name].[ext] --external clipboardy"
+    "build": "bun build ./src/command/*.ts --outdir ./out --target bun --minify --sourcemap=linked --entry-naming [name].[ext] --external clipboardy",
+    "link": "bun run build && bun unlink && bun link",
+    "unlink": "bun unlink"
   },
   "type": "module",
   "devDependencies": {
