@@ -38,7 +38,7 @@ export const gitCommitMessage = `
    - Ensure null safety when comparing noticeType values.
    </example>
    <example>
-   docs: refine git prompt templates, remove unused line, fix formatting
+   feat: add new table sas_run_task for storing SAS task information
    </example>
 </examples>
 `
