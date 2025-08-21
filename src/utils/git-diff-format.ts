@@ -1,8 +1,8 @@
 import type { ColorKey } from "./color-utils"
-import { cleanFilePath } from "./common-utils"
 import { terminal } from "./platform-utils"
 import { color } from "./color-utils"
 import { BoxFrame } from "./box-frame"
+import { cleanFilePath } from "./git-format"
 
 // git diff str parse
 
@@ -219,7 +219,7 @@ function diffShowStr(diff: DiffShow, colorName: DiffParseColor): string {
   return new BoxFrame(fileName, partStrs).text()
 }
 
-function gitDiffParse(str: string, color?: DiffParseColor) {
+function gitDiffParse(str: string, color?: DiffParseColor): string[] {
   const diff = parseGitDiffStr(str)
   const diffShow = mapToDiffShow(diff)
   return diffShow.flatMap((it) =>

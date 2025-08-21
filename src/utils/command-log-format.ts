@@ -1,11 +1,11 @@
 import { display } from "./color-utils"
+import { reg } from "./common-utils"
 import {
   cleanFilePath,
   isSummmaryLine,
-  reg,
   renderFileChange,
   renderSummaryLine,
-} from "./common-utils"
+} from "./git-format"
 import { terminal } from "./platform-utils"
 
 type CommandType = "git-pull" | "git-switch"

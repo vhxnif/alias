@@ -1,7 +1,8 @@
 import { checkbox, select } from "@inquirer/prompts"
-import { cleanFilePath, isEmpty } from "../utils/common-utils"
+import { isEmpty } from "../utils/common-utils"
 import type { Choice } from "../utils/inquirer-utils"
 import { exec, terminal } from "../utils/platform-utils"
+import { cleanFilePath } from "../utils/git-format"
 
 async function pwd(): Promise<string> {
   return await exec("pwd")

@@ -10,15 +10,10 @@ import type { ChalkInstance } from "chalk"
 import clipboard from "clipboardy"
 import { table, type TableUserConfig } from "table"
 import { color, colorHex, display, tableTitle } from "./color-utils"
-import {
-  cleanFilePath,
-  isEmpty,
-  isSummmaryLine,
-  renderFileChange,
-  renderSummaryLine,
-} from "./common-utils"
+import { isEmpty } from "./common-utils"
 import { exec, exit, terminal } from "./platform-utils"
 import { tableColumnWidth, tableDefaultConfig } from "./table-utils"
+import { formatGitShow } from "./git-show-format"
 
 export type GitLog = {
   hash: string
@@ -171,93 +166,6 @@ function cardTableConfig() {
   } as TableUserConfig
 }
 
-// --- Refactored Detail Formatting Start ---
-
-function _formatDetailHeader(headerLines: string[]): string {
-  const { yellow, blue, sky, green, mauve, teal } = color
-  const formattedLines: string[] = []
-  headerLines.forEach((line) => {
-    if (line.startsWith("commit")) {
-      const hash = yellow(line.split(" ")[1])
-      formattedLines.push(`${blue.bold("Commit:")} ${hash}`)
-    } else if (line.startsWith("Merge:")) {
-      const [_, oldHash, newHash] = line.split(" ")
-      formattedLines.push(
-        `${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`,
-      )
-    } else if (line.startsWith("Author:")) {
-      const [_, author, email] = line.split(" ")
-      formattedLines.push(
-        `${blue.bold("Author:")} ${mauve(author)} <${green(
-          email.substring(1, email.length - 1),
-        )}>`,
-      )
-    } else if (line.startsWith("Date:")) {
-      const [_, date] = line.split("Date:")
-      formattedLines.push(`${blue.bold("Date:")} ${teal(date)}`)
-    }
-  })
-  return formattedLines.join("\n")
-}
-
-function _formatDetailMessage(messageLines: string[]): string {
-  const singleQuotes = /'([^']+)'/g
-  const doubleQuotes = /"([^"]+)"/g
-  return messageLines
-    .map((line) => {
-      if (line.startsWith("    ")) {
-        return line
-          .replaceAll(singleQuotes, (m) => display.important.bold(m))
-          .replaceAll(doubleQuotes, (m) => display.important.bold(m))
-      }
-      return line // Keep blank lines
-    })
-    .join("\n")
-}
-
-function _formatDetailFileStats(statLines: string[]): string {
-  const formattedLines: string[] = []
-  statLines.forEach((line) => {
-    if (line.startsWith(" ") && line.includes("|")) {
-      const [file, change] = line.split("|")
-      formattedLines.push(
-        `${cleanFilePath(file, tableColumnWidth)}|${renderFileChange(change)}`,
-      )
-    } else if (isSummmaryLine(line)) {
-      formattedLines.push(renderSummaryLine(line))
-    }
-  })
-  return formattedLines.join("\n")
-}
-
-function formatDetail(detailStr: string): string {
-  const lines = detailStr.split("\n")
-  if (lines.length <= 4) return "" // Guard for empty/short input
-
-  const headerEndIndex = lines.findIndex((line) => line.trim() === "")
-  const statsStartIndex = lines.findIndex(
-    (line) =>
-      (line.startsWith(" ") && line.includes("|")) || isSummmaryLine(line),
-  )
-
-  const headerLines = lines.slice(0, headerEndIndex)
-
-  const messageLines = lines.slice(
-    headerEndIndex,
-    statsStartIndex === -1 ? undefined : statsStartIndex,
-  )
-
-  const statLines = statsStartIndex === -1 ? [] : lines.slice(statsStartIndex)
-
-  const formattedHeader = _formatDetailHeader(headerLines)
-  const formattedMessage = _formatDetailMessage(messageLines)
-  const formattedFileStats = _formatDetailFileStats(statLines)
-
-  return [formattedHeader, formattedMessage, formattedFileStats]
-    .filter(Boolean)
-    .join("\n")
-}
-
 // --- Refactored Detail Formatting End ---
 
 type LogDetail = {
@@ -272,7 +180,7 @@ function rowCard(
     return table([[""]], cardTableConfig())
   }
   const { showDetail, branchDetail } = detailInfo
-  let display = formatDetail(showDetail) // <-- Using new refactored function
+  let display = formatGitShow(showDetail, { filePathWidth: tableColumnWidth }) // <-- Using new refactored function
   if (branchShow) {
     const bfFormat = branchInfoFormat(branchDetail)
     display = `${display}\n${color.mauve(
