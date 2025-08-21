@@ -1,23 +1,29 @@
-// git show --stat <commit or tag> format
-import { color, display } from "./color-utils"
+import type { ChalkInstance } from "chalk"
+import { display } from "./color-utils"
 import {
   cleanFilePath,
   renderFileChange,
   renderSummaryLine,
+  formatColor,
 } from "./git-format"
 import { terminal } from "./platform-utils"
+import { isEmpty } from "./common-utils"
 
 type GitShowFormatConfig = {
   filePathWidth?: number
 }
 
+// git show --stat <commit>
 function formatGitShow(
   detailStr: string,
   config?: GitShowFormatConfig,
 ): string {
   const lines = detailStr.split("\n")
   if (lines.length <= 4) return "" // Guard for empty/short input
+  return _formatGitShow(lines, config)
+}
 
+function _formatGitShow(lines: string[], config?: GitShowFormatConfig): string {
   const headerEndIndex = lines.findIndex((line) => line.trim() === "")
   const statsStartIndex = lines.findIndex(
     (line) =>
@@ -50,28 +56,22 @@ function isSummmaryLine(line: string) {
     line,
   )
 }
+
 function _formatDetailHeader(headerLines: string[]): string {
-  const { yellow, blue, sky, green, mauve, teal } = color
+  const { key, oldHash: oldHashColor, newHash: newHashColor } = formatColor
   const formattedLines: string[] = []
   headerLines.forEach((line) => {
     if (line.startsWith("commit")) {
-      const hash = yellow(line.split(" ")[1])
-      formattedLines.push(`${blue.bold("Commit:")} ${hash}`)
+      formattedLines.push(_formatHash(line))
     } else if (line.startsWith("Merge:")) {
       const [_, oldHash, newHash] = line.split(" ")
       formattedLines.push(
-        `${blue.bold("Merge:")} ${sky(oldHash)} ${green(newHash)}`,
+        `${key("Merge:")} ${oldHashColor(oldHash)} ${newHashColor(newHash)}`,
       )
     } else if (line.startsWith("Author:")) {
-      const [_, author, email] = line.split(" ")
-      formattedLines.push(
-        `${blue.bold("Author:")} ${mauve(author)} <${green(
-          email.substring(1, email.length - 1),
-        )}>`,
-      )
+      formattedLines.push(_formatUser("Author:", line))
     } else if (line.startsWith("Date:")) {
-      const [_, date] = line.split("Date:")
-      formattedLines.push(`${blue.bold("Date:")} ${teal(date)}`)
+      formattedLines.push(_formatDate(line))
     }
   })
   return formattedLines.join("\n")
@@ -110,4 +110,66 @@ function _formatDetailFileStats(
   return formattedLines.join("\n")
 }
 
-export { type GitShowFormatConfig, formatGitShow }
+// [userKey]: [user] <[email]>
+function _formatUser(userKey: string, line: string): string {
+  const { key, author: authorColor, email: emailColor } = formatColor
+  const [_, author, email] = line.split(" ")
+  return `${key(userKey)} ${authorColor(author)} <${emailColor(
+    email.substring(1, email.length - 1),
+  )}>`
+}
+
+// Date: [date]
+function _formatDate(line: string): string {
+  return _foramtKeyValue(line, "Date:", "Date:", formatColor.date)
+}
+
+// commit [hash]
+function _formatHash(line: string): string {
+  return _foramtKeyValue(line, "commit", "Commit:", formatColor.hash)
+}
+// tag [tagName]
+function _formatTag(line: string): string {
+  return _foramtKeyValue(line, "tag", "Tag:", formatColor.tag)
+}
+
+function _foramtKeyValue(
+  line: string,
+  split: string,
+  keyName: string,
+  valueColor: ChalkInstance,
+): string {
+  const [_, value] = line.split(split)
+  return `${formatColor.key(keyName)} ${valueColor(value)}`
+}
+
+// git show --stat <tag>
+function formatGitTagShow(
+  tagShowStr: string,
+  config?: GitShowFormatConfig,
+): string[] {
+  const lines = tagShowStr.split("\n")
+  const tagInfoEndIndex = lines.findIndex((line) => line.startsWith("commit"))
+  const tagInfo = lines.slice(0, tagInfoEndIndex)
+  const commitInfo = lines.slice(tagInfoEndIndex)
+  const tagFormat = tagInfo
+    .map((it) => {
+      if (it.startsWith("tag")) {
+        return _formatTag(it)
+      }
+      if (it.startsWith("Tagger:")) {
+        return _formatUser("Tagger:", it)
+      }
+      if (it.startsWith("Date:")) {
+        return _formatDate(it)
+      }
+      return formatColor.text(it)
+    })
+    .join("\n")
+
+  return [tagFormat, _formatGitShow(commitInfo, config)].filter(
+    (it) => !isEmpty(it),
+  )
+}
+
+export { type GitShowFormatConfig, formatGitShow, formatGitTagShow }

@@ -2,11 +2,9 @@
 import { select } from "@inquirer/prompts"
 import { Command } from "commander"
 import { errParse, isEmpty, printErr } from "../utils/common-utils"
-import { exec, execPrint } from "../utils/platform-utils"
-import { tagFormat } from "../utils/diff-utils"
-import { formatGitShow } from "../utils/git-show-format"
+import { exec } from "../utils/platform-utils"
+import { formatGitTagShow } from "../utils/git-show-format"
 import { BoxFrame } from "../utils/box-frame"
-import { stringWidth } from "bun"
 
 new Command()
   .name("gts")
@@ -30,9 +28,9 @@ new Command()
       message: "Select A Tag: ",
       choices,
     })
-    const tagShowStr = formatGitShow(await exec(`git show --stat ${tag}`))
-    const width = tagShowStr
-      .split("\n")
+    const tagShow = formatGitTagShow(await exec(`git show --stat ${tag}`))
+    const width = tagShow
+      .flatMap((it) => it.split("\n"))
       .map((it) => Bun.stringWidth(it))
       .reduce((max, it) => {
         if (max > it) {
@@ -41,7 +39,7 @@ new Command()
         return it
       }, 0)
     console.log(
-      new BoxFrame(tag, [tagShowStr], {
+      new BoxFrame(tag, tagShow, {
         width: width,
       }).text(),
     )
