@@ -21,7 +21,6 @@ new Command()
     const tags = tagsStr
       .split("\n")
       .filter((it) => (name ? it.includes(name) : true))
-    console.log(tags)
     if (isEmpty(tags)) {
       printErr("Tags Is Empty.")
       return
