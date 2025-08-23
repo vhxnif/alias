@@ -2,9 +2,9 @@ import { color, type ColorKey } from "./color-utils"
 import { terminal } from "./platform-utils"
 
 export type BoxFrameConfig = {
-  titleColor: ColorKey
-  bolderColor: ColorKey
-  terminalColumn?: number
+  titleColor?: ColorKey
+  bolderColor?: ColorKey
+  width?: number
 }
 
 export class BoxFrame {
@@ -21,14 +21,15 @@ export class BoxFrame {
   constructor(title: string, content: string[], config?: BoxFrameConfig) {
     this.title = title
     this.content = content
-    this.config = config ?? {
-      titleColor: "mauve",
-      bolderColor: "overlay2",
+    this.config = {
+      titleColor: config?.titleColor ?? "mauve",
+      bolderColor: config?.bolderColor ?? "overlay2",
+      width: config?.width ?? terminal.column,
     }
   }
 
   text(): string {
-    const terminalWidth = this.config.terminalColumn ?? terminal.column
+    const terminalWidth = this.config.width!
     const topLineSumWidth = terminalWidth - 4 - this.title.length
     const topLeftLineWidth = Math.floor(topLineSumWidth / 2)
     const topRightLineWidth = topLineSumWidth - topLeftLineWidth
@@ -47,10 +48,10 @@ export class BoxFrame {
   }
 
   private colorLine(lineStr: string) {
-    return color[this.config.bolderColor](lineStr)
+    return color[this.config.bolderColor!](lineStr)
   }
 
   private colorTitle() {
-    return color[this.config.titleColor](this.title)
+    return color[this.config.titleColor!](this.title)
   }
 }

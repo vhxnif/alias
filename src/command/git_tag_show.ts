@@ -2,17 +2,23 @@
 import { select } from "@inquirer/prompts"
 import { Command } from "commander"
 import { errParse, isEmpty, printErr } from "../utils/common-utils"
-import { exec, execPrint } from "../utils/platform-utils"
-import { tagFormat } from "../utils/diff-utils"
+import { exec } from "../utils/platform-utils"
+import { formatGitTagShow } from "../utils/git-show-format"
+import { BoxFrame } from "../utils/box-frame"
 
 new Command()
   .name("gts")
   .description("git tag show")
   .argument("[name]", "barnch name", "")
   .action(async (name) => {
-    const tags = (await exec(`git tag`).then((it) => it.split("\n"))).filter(
-      (it) => (name ? it.includes(name) : true)
-    )
+    const tagsStr = await exec(`git tag`)
+    if (isEmpty(tagsStr)) {
+      printErr("Tags Is Empty.")
+      return
+    }
+    const tags = tagsStr
+      .split("\n")
+      .filter((it) => (name ? it.includes(name) : true))
     if (isEmpty(tags)) {
       printErr("Tags Is Empty.")
       return
@@ -22,7 +28,21 @@ new Command()
       message: "Select A Tag: ",
       choices,
     })
-    await execPrint(`git show ${tag}`, tagFormat)
+    const tagShow = formatGitTagShow(await exec(`git show --stat ${tag}`))
+    const width = tagShow
+      .flatMap((it) => it.split("\n"))
+      .map((it) => Bun.stringWidth(it))
+      .reduce((max, it) => {
+        if (max > it) {
+          return max
+        }
+        return it
+      }, 0)
+    console.log(
+      new BoxFrame(tag, tagShow, {
+        width: width,
+      }).text(),
+    )
   })
   .parseAsync()
   .catch(errParse)
